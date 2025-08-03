@@ -1,6 +1,6 @@
 # Gradient-Guided Search for Assured Contingency Landing Management
 
-This repository provides a C/C++ implementation of a **gradient-guided search algorithm** for real-time emergency landing path planning in dense and constrained airspace. The framework enables air traffic deconfliction and minimizes operational disruptions during emergency mitigation by combining spatial risk modeling, 3D trajectory search, and heuristic optimization.
+This repository provides a C/C++ implementation of a **Gradient-guided Search for Assured Contingency Landing Planning** in dense and constrained airspace. The framework enables air traffic deconfliction and minimizes operational disruptions during emergency mitigation by combining spatial risk modeling and 4D trajectory search considering degraded fixed-wing aircraft performance.
 
 Developed at the **Autonomous Aerospace Systems Laboratory (A2Sys)**, Kevin T. Crofton Department of Aerospace and Ocean Engineering, Virginia Tech.
 
@@ -34,23 +34,25 @@ Developed at the **Autonomous Aerospace Systems Laboratory (A2Sys)**, Kevin T. C
 
 ## 📊 Datasets Provided
 
-The repository includes curated datasets for modeling urban airspace, risk-aware descent, and air traffic deconfliction in the Washington, D.C. area. These datasets support simulation, benchmarking, and deployment of the contingency landing planner.
+The repository includes curated datasets for Cessna 182 gliding aircraft performance, as well as urban airspace and population density in the Washington, D.C. area. These datasets support simulation and benchmarking of emergency landing scenarios in congested environments.
+
 
 ### 1️⃣ Gliding Aircraft Performance
 
 - **Cessna 182 Gliding Parameter Set and Flight Path Angle Look-Up Table**  
   Precomputed table for estimating glide descent angles as a function of steady wind and aircraft heading.
-  **Source:** H. E. Tekaslan and E. M. Atkins, “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, vol. 48, no. 8, pp. 1800–1817, 2025.
 
 ### 2️⃣ Ground Risk Data
 
 - **Washington D.C. Area Census Dataset**  
   Provided as shapefiles, includes polygonal population zones used to compute ground risk exposure along descent paths using spatial R-tree queries.
+  **Source:** 
 
 ### 3️⃣ Airport and Runway Data
 
 - **Washington D.C. Airport and Runway Geometry**  
   Binary file containing runway endpoints, headings, and elevations for major airports in the region. Used to initialize candidate landing sites.
+  **Source:** SkyVector, “Skyvector aeronautical charts,” https://skyvector.com, 2025, Accessed on March 2025.
 
 ### 4️⃣ Helicopter Route Data
 
@@ -90,3 +92,61 @@ cd <directory-to-GGS_ACLM> make && clear && ./test
 
 ### 3. Post-process
 Results are written in `results/` folder.
+
+
+## 📚 Data Sources
+
+References for datasets:
+
+- **Gliding Cessna 182 Model and Flight Path Angle Look-Up Table**  
+  H. E. Tekaslan and E. M. Atkins, “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, vol. 48, no. 8, pp. 1800–1817, 2025.
+
+- **Washington D.C. Census Data (Shapefiles)**  
+  U.S. Census Bureau, 2020 TIGER/Line Shapefiles\
+  🔗 https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html
+
+- **Airport and Runway Data (Washington D.C.)**  
+  Derived from FAA Airport GIS and FAA NASR datasets.\
+  🔗 SkyVector, “Skyvector aeronautical charts,” https://skyvector.com, 2025, Accessed on March 2025.
+
+- **Helicopter Route Data**  
+  Constructed from publicly available FAA VFR Sectionals and regional helicopter corridors.\
+  🔗 SkyVector, “Skyvector aeronautical charts,” https://skyvector.com, 2025, Accessed on March 2025.
+
+- **No-Fly Zone Geometry**  
+  Constructed from publicly available FAA VFR Sectionals and regional helicopter corridors.\
+  🔗 SkyVector, “Skyvector aeronautical charts,” https://skyvector.com, 2025, Accessed on March 2025.
+
+- **ADS-B Data**  
+  Historical ADS-B data collected via OpenSky Network.\
+M. Schäfer, M. Strohmeier, V. Lenders, I. Martinovic, and M. Wilhelm, “Bringing up opensky: A large-scale ads-b sensor network for research,” in _IPSN-14 Proceedings of the 13th International Symposium on Information Processing in Sensor Networks_, 2014, pp. 83–94\
+  🔗 https://opensky-network.org
+
+---
+
+If you use this software in your research or projects, please cite:
+
+Tekaslan, H. E., & Atkins, E. M. *Aircraft Contingency Landing Planning in Dense Airspace*. 2025, arXiv preprint arXiv:XXXX.XXXXX. https://arxiv.org/abs/XXXX.XXXXX
+
+```bibtex
+@misc{ggs-aclm,
+  title     = {Aircraft Contingency Landing Planning in Dense Airspace},
+  author    = {H. Emre Tekaslan and Ella M. Atkins},
+  year      = {2025},
+  eprint    = {},
+  archivePrefix = {arXiv},
+  primaryClass  = {},
+  url       = {}
+}
+```
+
+## 👤 Author
+
+**H. Emre Tekaslan**  
+Autonomous Aerospace Systems Laboratory (A2Sys)  
+Kevin T. Crofton Department of Aerospace and Ocean Engineering  
+Virginia Tech, Blacksburg, VA, USA
+
+- 📧 Email: [tekaslan@vt.edu](mailto:tekaslan@vt.edu)  
+- 🔗 Google Scholar: [https://scholar.google.com/citations?user=uKn-WSIAAAAJ&hl=en](https://scholar.google.com/citations?user=uKn-WSIAAAAJ&hl=en)  
+- 🔗 LinkedIn: [https://www.linkedin.com/in/tekaslan/](https://www.linkedin.com/in/tekaslan/)
