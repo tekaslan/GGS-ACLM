@@ -46,13 +46,11 @@ The repository includes curated datasets for Cessna 182 gliding aircraft perform
 
 - **Washington D.C. Area Census Dataset**  
   Provided as shapefiles, includes polygonal population zones used to compute ground risk exposure along descent paths using spatial R-tree queries.
-  **Source:** 
 
 ### 3️⃣ Airport and Runway Data
 
 - **Washington D.C. Airport and Runway Geometry**  
   Binary file containing runway endpoints, headings, and elevations for major airports in the region. Used to initialize candidate landing sites.
-  **Source:** SkyVector, “Skyvector aeronautical charts,” https://skyvector.com, 2025, Accessed on March 2025.
 
 ### 4️⃣ Helicopter Route Data
 
