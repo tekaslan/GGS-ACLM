@@ -90,11 +90,19 @@ cd <directory-to-GGS_ACLM> make && clear && ./test
 ### 3. Post-process
 Results are written in `results/` folder.
 
-### 4. Custom case
+### 4. Custom Case
 To run a different case, users need to input emergency state coordinates and heading into the configuration file `aclm.cfg`.\
 Make sure it is a reachable case defined within the modeled airspace environment (e.g., Washington D.C. by default).\
 Goal and touchdown states may be left blank as they are set by the landing site selection module.\
 Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wind speed.
+
+### 5. Software Execution Exit Flags
+0  : Search solver has found a solution to the best landing site.\
+1  : Search solver has found a solution to an alternate landing site.\
+2  : Search solver has not converged within the maximum allowed state expansions. Dubins solver has returned a fallback solution. Increasing MAX_ITER in `aclm.cfg` may help to find a search-based solution.\
+-1 : Emergency state has been found unreachable.\
+-2 : Emergency state has been initialized nearby a prohibited area.\
+-3 : Search open-list (priority queue) is empty. Search-based solution has not been found.\
 
 ## 📚 Data Sources
 
