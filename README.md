@@ -100,9 +100,9 @@ Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wi
 0  : Search solver has found a solution to the best landing site.\
 1  : Search solver has found a solution to an alternate landing site.\
 2  : Search solver has not converged within the maximum allowed state expansions. Dubins solver has returned a fallback solution. Increasing MAX_ITER in `aclm.cfg` may help to find a search-based solution.\
--1 : Emergency state has been found unreachable.\
--2 : Emergency state has been initialized nearby a prohibited area.\
--3 : Search open-list (priority queue) is empty. Search-based solution has not been found.\
+-1 : Unreachable case has been detected.\
+-2 : Emergency has been initialized nearby a prohibited area.\
+-3 : Search open list (priority queue) is empty. Search-based solution has not been found. Check `results/` folder for Dubins fallback solution, if the case is reachable.\
 
 ## 📚 Data Sources
 
