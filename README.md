@@ -82,15 +82,18 @@ This project uses standard C/C++ libraries and a few geospatial dependencies. On
 brew install proj spatialindex shapelib
 ```
 ### 2. Build and Run
-Configuration file `aclm.cfg` can be used for fundamental settings. To build and run the software:
+The provided test case simulates joint airspace and ground risk-aware emergency landing planning for an engine-out Cessna 182 over Washington, D.C. To build and run the test case:
 
 ```bash
 cd <directory-to-GGS_ACLM> make && clear && ./test
 ```
-
 ### 3. Post-process
 Results are written in `results/` folder.
 
+### 4. Custom case
+To run a different case, users need to input emergency state coordinates and heading into the configuration file `aclm.cfg`.
+Make sure it is a reachable case defined within the modeled airspace environment (e.g., Washington D.C. by default).
+Goal and touchdown states may be left blank as they are set by the landing site selection module.
 
 ## 📚 Data Sources
 
