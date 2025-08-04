@@ -1,6 +1,6 @@
 # Gradient-Guided Search for Assured Contingency Landing Management
 
-This repository provides a C/C++ implementation of a **Gradient-guided Search for Assured Contingency Landing Planning** in dense and constrained airspace. The framework enables air traffic deconfliction and minimizes operational disruptions during emergency mitigation by combining spatial risk modeling and 4D trajectory search considering degraded fixed-wing aircraft performance.
+This repository provides a C/C++ implementation of a **Gradient-guided Search for Assured Contingency Landing Planning** in dense and constrained airspace. The framework enables path planning with air traffic deconfliction and minimizes operational disruptions during emergency mitigation by combining spatial risk modeling and 4D trajectory search considering degraded fixed-wing aircraft performance.
 
 Developed at the **Autonomous Aerospace Systems Laboratory (A2Sys)**, Kevin T. Crofton Department of Aerospace and Ocean Engineering, Virginia Tech.
 
