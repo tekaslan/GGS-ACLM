@@ -398,7 +398,11 @@ char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir)
     char *shapefiledir = (char *) malloc(300*sizeof(char));
 
     while (fgets(line, sizeof(line), cfg)) {
-        if (strncmp(line, "AIRSPACE_INTEG_DT", 17) == 0) {
+        if (strncmp(line, "ASRISK_W_HMAX", 13) == 0) {
+            sscanf(line, "ASRISK_W_HMAX = %lf", &problem->asrisk_w_hmax);
+        } else if (strncmp(line, "ASRISK_W_HMIN", 14) == 0) {
+            sscanf(line, "ASRISK_W_HMIN = %lf", &problem->asrisk_w_hmin);
+        } else if (strncmp(line, "AIRSPACE_INTEG_DT", 14) == 0) {
             sscanf(line, "AIRSPACE_INTEG_DT = %lf", &problem->airspaceRiskTimeStep);
         } else if (strncmp(line, "GROUND_INTEG_DT", 15) == 0) {
             sscanf(line, "GROUND_INTEG_DT = %lf", &problem->groundRiskTimeStep);
