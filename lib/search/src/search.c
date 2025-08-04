@@ -250,7 +250,8 @@ struct Pos *result(Node *node, Action *action, SearchProblem *problem)
 
     // Make altitude correction on the parent state
     double alt_corrected;
-    if (node->action->length != 0) {  // If the node is not the initial node   
+    if (node->action->length != 0) {  // If the node is not the initial node
+
         // Find the straight length corresponding to half turn
         double halfTurnDist = problem->ac->turnRadius*tan(DEG_2_RAD*(0.5*fabs(node->action->deltaCourse)));
 
@@ -565,15 +566,10 @@ double airspaceCost(struct Pos *state, Action *action, double length, SearchProb
     double hdg = state->hdg;
 
     // Altitude weight
-    double w_altmax, w_altmin;
-    if (problem->goalAirspaceCost >= 0.5) w_altmax = 1500, w_altmin = 1000;
-    else if (problem->goalAirspaceCost >= 0.2 && problem->goalAirspaceCost < 0.5) w_altmax = 1000, w_altmin = 500;
-    else w_altmax = 1000, w_altmin = 200;
-
     double w_alt;
     double remh = state->alt - problem->Goal.alt;   // Remaining altitude [ft]
-    if (remh >= w_altmax) w_alt = 1;
-    else if (remh >= w_altmin && remh < w_altmax) w_alt = (remh - w_altmin)/(w_altmax - w_altmin);
+    if (remh >= problem->asrisk_w_hmax) w_alt = 1;
+    else if (remh >= problem->asrisk_w_hmin && remh < problem->asrisk_w_hmax) w_alt = (remh - problem->asrisk_w_hmin)/(problem->asrisk_w_hmax - problem->asrisk_w_hmin);
     else return 0;
 
     // Initialize variables
@@ -690,15 +686,13 @@ double maxDensityAhead(struct Pos *state, SearchProblem *problem)
 
     // Altitude weight
     double w_alt = 1;
-    double h_goal = problem->Goal.alt;
-
     if (problem->goalAirspaceCost > 0) {
-        if (alt >= h_goal + 1500) {
+        if (alt >= problem->Goal.alt + problem->asrisk_w_hmax) {
             w_alt = 1;
-        } else if (alt <= h_goal + 500) {
+        } else if (alt <= problem->Goal.alt + problem->asrisk_w_hmin) {
             w_alt = 0;
         } else {
-            w_alt = (alt - (h_goal + 500)) / 1000.0;  // Linearly decreases from 1 to 0
+            w_alt = (alt - (problem->Goal.alt + problem->asrisk_w_hmin)) / (problem->asrisk_w_hmax - problem->asrisk_w_hmin);  // Linearly decreases from 1 to 0
         }
     }
 
