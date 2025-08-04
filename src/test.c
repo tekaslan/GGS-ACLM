@@ -72,14 +72,11 @@ struct DubinsPath *minRiskDubins(struct DubinsPath *dubins, SearchProblem * prob
 
 int main()
 {
-
     /*
         Files and Folders
     */
-    char log[100];
-    strcpy(log, "results");
-    mkdir(log, 0777);
     FILE * logfile;
+    char log[100];
     strcpy(log, "results/log.csv");
 
     // Open a log file in write mode
@@ -102,12 +99,6 @@ int main()
     // Structures for initial, goal, and touchdown states
     struct Pos init, goal, touchdown;
    
-    // Emergency onset
-    init.lat = 38.81792;		
-    init.lon = -77.14225;
-    init.alt = 8308.8;
-    init.hdg = 137.3;
-
     // Define the search structure
     SearchProblem *problem = calloc(1, sizeof(SearchProblem));
 
@@ -117,8 +108,10 @@ int main()
     if (mkdir(folderName, 0777) != 0) perror("mkdir failed");
     
     // Write the initial state to config file
+    loadInitialState(problem, cfgdir);
+    init = problem->Initial;
     editCFG(cfgdir, folderName, &init, &goal, &touchdown);
-    problem->Initial = init;
+    problem->InitialSearch = problem->Initial;
     
     // Run path planning
     runEmergencyPlanning(problem, folderName, cfgdir);
@@ -153,7 +146,7 @@ int main()
         struct DubinsPath *bestDubins = minRiskDubins(dubins, problem, &totalRuntime, &riskRuntime);
 
         // If Dubins solution cannot be found, label the case unreachable.
-        if (bestDubins->size == 0) { 
+        if (bestDubins->size == 0) {
             problem->exitFlag = -1;  
         } else if (bestDubins->size > 0){ // If search open list is empty and a Dubins solution is found, label the case fallback.
             if (bestDubins->ga < INFINITY){
