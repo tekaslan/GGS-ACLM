@@ -97,12 +97,13 @@ Goal and touchdown states may be left blank as they are set by the landing site 
 Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wind speed.
 
 ### 5. Software Execution Exit Flags
-0  : Search solver has found a solution to the best landing site.\
-1  : Search solver has found a solution to an alternate landing site.\
-2  : Search solver has not converged within the maximum allowed state expansions. Dubins solver has returned a fallback solution. Increasing MAX_ITER in `aclm.cfg` may help to find a search-based solution.\
--1 : Unreachable case has been detected.\
--2 : Emergency has been initialized nearby a prohibited area.\
--3 : Search open list (priority queue) is empty. Search-based solution has not been found. Check `results/` folder for Dubins fallback solution, if the case is reachable.\
+- `0`: The search solver has found a solution to the best landing site.  
+- `1`: The search solver has found a solution to an alternate landing site.  
+- `2`: The search solver did not converge within the maximum allowed state expansions. A fallback solution from the Dubins solver has been returned. Increasing `MAX_ITER` in `aclm.cfg` may help find a search-based solution.  
+- `-1`: An unreachable case has been detected.  
+- `-2`: The emergency was initialized near a prohibited area.  
+- `-3`: The search open list (priority queue) is empty. A search-based solution was not found. Check the `results/` folder for a Dubins fallback solution if the case is reachable.
+
 
 ## 📚 Data Sources
 
