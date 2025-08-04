@@ -47,7 +47,7 @@ int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * confi
 {
 
     printf("*******************************************************************************************\n");
-    printf("* Airspace and Ground-risk Aware                                                          *\n");
+    printf("* Airspace and Ground Risk-aware                                                          *\n");
     printf("* Aircraft Contingency Landing Planner                                                    *\n");
     printf("* Using Gradient-guided 4D Discrete Search and 3D Dubins Solver                           *\n");
     printf("* Copyright (C) 2025 Huseyin Emre Tekaslan, (tekaslan@vt.edu) @ A2Sys Lab, Virginia Tech  *\n");
