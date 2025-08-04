@@ -120,12 +120,8 @@ References for datasets:
   Derived from FAA Airport GIS and FAA NASR datasets.\
   🔗 SkyVector, “Skyvector aeronautical charts,” https://skyvector.com, 2025, Accessed on March 2025.
 
-- **Helicopter Route Data**  
-  Constructed from publicly available FAA VFR Sectionals and regional helicopter corridors.\
-  🔗 SkyVector, “Skyvector aeronautical charts,” https://skyvector.com, 2025, Accessed on March 2025.
-
-- **No-Fly Zone Geometry**  
-  Constructed from publicly available FAA VFR Sectionals and regional helicopter corridors.\
+- **Helicopter Route and No-Fly Zone Data**  
+  Constructed from publicly available FAA VFR Sectionals.\
   🔗 SkyVector, “Skyvector aeronautical charts,” https://skyvector.com, 2025, Accessed on March 2025.
 
 - **ADS-B Data**  
