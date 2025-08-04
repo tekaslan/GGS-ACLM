@@ -145,8 +145,9 @@ typedef struct SearchProblem
     double goalAirspaceCost;    // Airspace cost of the goal state
     double initAirspaceCost;    // Airspace cost of the initial state
     double w_gp;                // Overflown population risk weight. Default: (1 - w_gp)
-    double w_ga;                // Airspace risk weight 
-    double w_h;                 // Heuristic cost weight
+    double w_ga;                // Airspace risk weight
+    double asrisk_w_hmax;       // Airspace risk weight h_max
+    double asrisk_w_hmin;       // Airspace risk weight h_min
 
     // HOLDING PATTERN
     struct Pos *HoldingPoint;
