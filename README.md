@@ -91,9 +91,10 @@ cd <directory-to-GGS_ACLM> make && clear && ./test
 Results are written in `results/` folder.
 
 ### 4. Custom case
-To run a different case, users need to input emergency state coordinates and heading into the configuration file `aclm.cfg`.
-Make sure it is a reachable case defined within the modeled airspace environment (e.g., Washington D.C. by default).
-Goal and touchdown states may be left blank as they are set by the landing site selection module.
+To run a different case, users need to input emergency state coordinates and heading into the configuration file `aclm.cfg`.\
+Make sure it is a reachable case defined within the modeled airspace environment (e.g., Washington D.C. by default).\
+Goal and touchdown states may be left blank as they are set by the landing site selection module.\
+Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wind speed.
 
 ## 📚 Data Sources
 
