@@ -50,7 +50,7 @@ int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * confi
     printf("* Airspace and Ground-risk Aware                                                          *\n");
     printf("* Aircraft Contingency Landing Planner                                                    *\n");
     printf("* Using Gradient-guided 4D Discrete Search and 3D Dubins Solver                           *\n");
-    printf("* Copyright (C) 2025 Huseyin Emre Tekaslan, (tekaslan@vt.edu)                             *\n");
+    printf("* Copyright (C) 2025 Huseyin Emre Tekaslan, (tekaslan@vt.edu) @ A2Sys Lab, Virginia Tech  *\n");
     printf("* This program comes with ABSOLUTELY NO WARRANTY.                                         *\n");
     printf("* This is free software, and you are welcome to redistribute it under certain conditions. *\n");
     printf("*******************************************************************************************\n");
@@ -400,9 +400,9 @@ char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir)
     while (fgets(line, sizeof(line), cfg)) {
         if (strncmp(line, "ASRISK_W_HMAX", 13) == 0) {
             sscanf(line, "ASRISK_W_HMAX = %lf", &problem->asrisk_w_hmax);
-        } else if (strncmp(line, "ASRISK_W_HMIN", 14) == 0) {
+        } else if (strncmp(line, "ASRISK_W_HMIN", 13) == 0) {
             sscanf(line, "ASRISK_W_HMIN = %lf", &problem->asrisk_w_hmin);
-        } else if (strncmp(line, "AIRSPACE_INTEG_DT", 14) == 0) {
+        } else if (strncmp(line, "AIRSPACE_INTEG_DT", 17) == 0) {
             sscanf(line, "AIRSPACE_INTEG_DT = %lf", &problem->airspaceRiskTimeStep);
         } else if (strncmp(line, "GROUND_INTEG_DT", 15) == 0) {
             sscanf(line, "GROUND_INTEG_DT = %lf", &problem->groundRiskTimeStep);

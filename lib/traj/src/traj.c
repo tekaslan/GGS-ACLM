@@ -37,6 +37,7 @@
 #                                                                                   %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 */
+
 #include "../include/traj.h"
 
 int Traj_Copy(struct Traj *p, struct Traj *c){

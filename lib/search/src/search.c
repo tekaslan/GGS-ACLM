@@ -155,8 +155,8 @@ void initializeSearch(SearchProblem * problem) {
 
     // If the initial state is in the prohibited area, return error
     double prohibitedAreaInitialization = getAirTrafficDensity(&node->state, problem->prohibited);
-    // double prohibitedAreaInitialization = max(getAirTrafficDensity(&node->state, problem->prohibited), getAirTrafficDensity(&node->state, problem->traffic));
     if (prohibitedAreaInitialization > 0) {
+        perror("Initialization within prohibited airspace.\n");
         problem->exitFlag = -2;
         return;
     }
@@ -565,11 +565,16 @@ double airspaceCost(struct Pos *state, Action *action, double length, SearchProb
     double alt = state->alt;
     double hdg = state->hdg;
 
-    // Altitude weight
+    // Altitude weight (Altitude thresholds are tuned for Washington D.C. area and hardcoded into the planner.)
+    double w_altmax, w_altmin;
+    if (problem->goalAirspaceCost >= 0.5) w_altmax = problem->asrisk_w_hmax, w_altmin = problem->asrisk_w_hmin;
+    else if (problem->goalAirspaceCost >= 0.2 && problem->goalAirspaceCost < 0.5) w_altmax = 1000, w_altmin = 500;
+    else w_altmax = 1000, w_altmin = 200;
+
     double w_alt;
     double remh = state->alt - problem->Goal.alt;   // Remaining altitude [ft]
-    if (remh >= problem->asrisk_w_hmax) w_alt = 1;
-    else if (remh >= problem->asrisk_w_hmin && remh < problem->asrisk_w_hmax) w_alt = (remh - problem->asrisk_w_hmin)/(problem->asrisk_w_hmax - problem->asrisk_w_hmin);
+    if (remh >= w_altmax) w_alt = 1;
+    else if (remh >= w_altmin && remh < w_altmax) w_alt = (remh - w_altmin)/(w_altmax - w_altmin);
     else return 0;
 
     // Initialize variables
@@ -684,15 +689,15 @@ double maxDensityAhead(struct Pos *state, SearchProblem *problem)
         }
     }
 
-    // Altitude weight
+    // Altitude weight (Altitude thresholds are tuned for Washington D.C. area and hardcoded into the planner.)
     double w_alt = 1;
     if (problem->goalAirspaceCost > 0) {
-        if (alt >= problem->Goal.alt + problem->asrisk_w_hmax) {
+        if (alt >= problem->Goal.alt + 1500) {
             w_alt = 1;
-        } else if (alt <= problem->Goal.alt + problem->asrisk_w_hmin) {
+        } else if (alt <= problem->Goal.alt + 500) {
             w_alt = 0;
         } else {
-            w_alt = (alt - (problem->Goal.alt + problem->asrisk_w_hmin)) / (problem->asrisk_w_hmax - problem->asrisk_w_hmin);  // Linearly decreases from 1 to 0
+            w_alt = (alt - (problem->Goal.alt + 500)) / 1000.0;  // Linearly decreases from 1 to 0
         }
     }
 
