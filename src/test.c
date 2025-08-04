@@ -76,8 +76,10 @@ int main()
     /*
         Files and Folders
     */
-    FILE * logfile;
     char log[100];
+    strcpy(log, "results");
+    mkdir(log, 0777);
+    FILE * logfile;
     strcpy(log, "results/log.csv");
 
     // Open a log file in write mode
