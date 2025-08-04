@@ -135,7 +135,7 @@ M. Schäfer, M. Strohmeier, V. Lenders, I. Martinovic, and M. Wilhelm, “Bringi
 
 ---
 
-If you use this software in your research or projects, please cite:
+If you use this software in part or in full for your research or projects, please cite:
 
 Tekaslan, H. E., & Atkins, E. M. *Aircraft Contingency Landing Planning in Dense Airspace*. 2025, arXiv preprint arXiv:XXXX.XXXXX. https://arxiv.org/abs/XXXX.XXXXX
 
