@@ -136,7 +136,7 @@ If you use this software in part or in full for your research or projects, pleas
 Tekaslan, H. E.; Atkins, E. M. Gradient Guided Search for Autonomous Contingency Landing Planning. Preprints 2025, 2025080709. https://doi.org/10.20944/preprints202508.0709.v1
 
 ```bibtex
-@article{202508.0709,
+@article{ggs_aclm,
 	doi = {10.20944/preprints202508.0709.v1},
 	url = {https://doi.org/10.20944/preprints202508.0709.v1},
 	year = 2025,
