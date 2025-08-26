@@ -133,17 +133,18 @@ M. Schäfer, M. Strohmeier, V. Lenders, I. Martinovic, and M. Wilhelm, “Bringi
 
 If you use this software in part or in full for your research or projects, please cite:
 
-Tekaslan, H. E., & Atkins, E. M. *Aircraft Contingency Landing Planning in Dense Airspace*. 2025, arXiv preprint arXiv:XXXX.XXXXX. https://arxiv.org/abs/XXXX.XXXXX
+Tekaslan, H. E.; Atkins, E. M. Gradient Guided Search for Autonomous Contingency Landing Planning. Preprints 2025, 2025080709. https://doi.org/10.20944/preprints202508.0709.v1
 
 ```bibtex
-@misc{ggs-aclm,
-  title     = {Aircraft Contingency Landing Planning in Dense Airspace},
-  author    = {H. Emre Tekaslan and Ella M. Atkins},
-  year      = {2025},
-  eprint    = {},
-  archivePrefix = {arXiv},
-  primaryClass  = {},
-  url       = {}
+@article{202508.0709,
+	doi = {10.20944/preprints202508.0709.v1},
+	url = {https://doi.org/10.20944/preprints202508.0709.v1},
+	year = 2025,
+	month = {August},
+	publisher = {Preprints},
+	author = {H. Emre Tekaslan and Ella M. Atkins},
+	title = {Gradient Guided Search for Autonomous Contingency Landing Planning},
+	journal = {Preprints}
 }
 ```
 
