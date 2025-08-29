@@ -133,18 +133,17 @@ M. Schäfer, M. Strohmeier, V. Lenders, I. Martinovic, and M. Wilhelm, “Bringi
 
 If you use this software in part or in full for your research or projects, please cite:
 
-Tekaslan, H. E.; Atkins, E. M. Gradient Guided Search for Autonomous Contingency Landing Planning. Preprints 2025, 2025080709. https://doi.org/10.20944/preprints202508.0709.v1
+Tekaslan, H. E.; Atkins, E. M.xxxxxxxxx. arXiv 2025, xxxxxxxx. https://doi.org/xxxxxxxxx
 
 ```bibtex
 @article{ggs_aclm,
-	doi = {10.20944/preprints202508.0709.v1},
-	url = {https://doi.org/10.20944/preprints202508.0709.v1},
+	doi = {xxxxx},
 	year = 2025,
-	month = {August},
-	publisher = {Preprints},
+	month = {xxxx},
+	publisher = {arXiv},
 	author = {H. Emre Tekaslan and Ella M. Atkins},
-	title = {Gradient Guided Search for Autonomous Contingency Landing Planning},
-	journal = {Preprints}
+	title = {xxxxxxxxx},
+	journal = {arXiv}
 }
 ```
 
