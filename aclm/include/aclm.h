@@ -1,0 +1,223 @@
+/*
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#                                                                                   #
+#    Gradient-guided Search for Assured Contingency Landing Management              #
+#    Copyright (C) 2025  Huseyin Emre Tekaslan                                      #
+#                                                                                   #
+#    This program is free software: you can redistribute it and/or modify           #
+#    it under the terms of the GNU General Public License as published by           #
+#    the Free Software Foundation, either version 3 of the License, or              #
+#    (at your option) any later version.                                            #
+#                                                                                   #
+#    This program is distributed in the hope that it will be useful,                #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of                 #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                  #
+#    GNU General Public License for more details.                                   #
+#                                                                                   #
+#    You should have received a copy of the GNU General Public License              #
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.         #
+#                                                                                   #
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+*/
+
+#ifndef ACLM_H
+#define ACLM_H
+
+#include "search.h"
+#include "geo_structs.h"
+#include "airtraffic.h"
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// struct GeoOpt;
+typedef struct PriorityQueue PriorityQueue;
+typedef struct closedList closedList;
+
+typedef struct Aircraft
+{
+    double turnRadius;      // ft
+    double airspeed;        // ft/s
+    double gammaOptTurn;    // Optimal flight path angle for turn [deg]
+    double gammaBGturn;     // Best-glide flight path angle for turn [deg]
+    double gammaOpt;        // Optimal flight path angle for forward flight [deg]
+    double gamma_bg[9][9];  // deg
+    double gamma_vfe[9][9]; // deg
+} Aircraft;
+
+// Solver type structure
+enum SolverType
+{
+    SEARCH,
+    DUBINS_SEARCH,
+    SEARCH_AIRSPACE
+};
+
+// Landing site structure
+typedef struct landingSite
+{
+    int ident;      // Ident. integer corresponding ICAO code
+    struct Pos pos; // Lat (deg), Lon (deg), Alt (ft), Hdg (deg)
+    double gamma;   // deg – estimate straight gliding angle to the landing site
+    double length;  // ft
+    double width;   // ft
+    double commercial; // Commercial traffic support 0:False, 1:True
+    double military; // Military field 0:False, 1:True
+    double headwind; // Headwind [kts]
+    double crosswind; // Tailwind [kts]
+    double U;       // Utility
+    struct landingSite *next;   // Next landing site
+} landingSite;
+
+// Problem structure
+typedef struct SearchProblem
+{
+    // EARTH MODEL
+    struct GeoOpt GeoOpt;
+
+    // DATASETS
+    struct Aircraft *ac;
+    struct Census *census;  // For population density query
+    struct Census *merged;  // For holding point identification
+    struct airspaceHeatmap *traffic;  // Departure/arrival air traffic heatmap based on historical ADS-B data from OpenSky Network
+    struct airspaceHeatmap *heli;     // Helicopter route heatmap based on skyvector.com DC Heli Area
+    struct airspaceHeatmap *prohibited; // Prohibited zone heatmap based on skyvector.com
+
+    // SOLVER SETTINGS
+    size_t maxIter;
+    enum SolverType solver;
+    int exitFlag;          // 0: Success, 1: Unreachable, 2: Max. iteration is reached, 3: Initialized in prohibited area, 9: Unidentified error
+    int limitedR;
+    int direction_of_search; // -1: Backward, 1: Forward
+
+    // SEARCH
+    PriorityQueue *pq;
+    closedList *explored;
+
+    // STATES
+    struct Pos Initial;         // Initial emergency state
+    struct Pos Goal;            // Goal state
+    struct Pos Touchdown;       // Touchdown state
+    struct Pos InitialSearch;   // Initial search state
+    struct Pos finalState;      // Final search state
+
+    // ACTIONS
+    double deltaCourse[5];      // Course angle changes [deg]
+    double lmin;                // Min. path length [ft]
+    double adaptiveLenghtAltitude;  // Floor altitude for adaptive segment length [ft]
+
+    // DISCRETIZATION
+    double dAltitude;           // Altitude discretization [ft]
+    double dPsi;                // Heading discretization [deg]
+
+    // DISTANCE - LENGTH RELATED
+    double alt_to_lose;         // Altitude difference of initial and goal states [ft]
+    double totalLength;         // Total path length [ft]
+    double dOpt;                // Optimal path length [ft]
+    double bestGlideRange;      // Best glide range [ft]
+    double identRadius;         // Solution identification radius [ft]
+    double du;                  // Distance-related constants for weight calculations [ft]
+    double dl;                  // Distance-related constants for weight calculations [ft]
+
+    // AIRCRAFT - FLIGHT ENVELOPE
+    double v;                   // Airspeed [ft/s]
+    double gammaBG;             // Best-glide flight path angle [deg]
+    double gammaVFE;            // Steepest glide angle corresponding to VFE [deg]
+    double gammaOpt;            // Optimal glide angle [deg]
+    
+    // ENVIRONMENTAL
+    double windSpeed;           // Wind speed [m/s]
+    double windDirection;       // Wind direction [deg]
+
+    // COST COMPUTATION
+    double airspaceRiskTimeStep;    // Time step for airspace risk integration [s]
+    double groundRiskTimeStep;      // Time step for ground risk integration [s]
+    double airspace_dx;             // Spatial step for airspace risk integration [ft]
+    double ground_dx;               // Spatial step for overflown population risk integration [ft]
+    double maxPopulation;       // Max. population density within census data. Used for normalization [persons/m^2]
+    double minPopulation;       // Min. population density within census data. Used for normalization [persons/m^2]
+    double crossoverAlt;        // Crossover altitude / Ceiling altitude for population density consideration. [ft]
+    double *goalNormal;         // Goal state normal vector pointing the goal course angle
+    double courseCostMax;       // Max. course angle cost for normalization
+    double courseCostMin;       // Min. course angle cost for normalization
+    double populationCostNormalizer; // Overflown population cost normaliation parameter
+    double goalAirspaceCost;    // Airspace cost of the goal state
+    double initAirspaceCost;    // Airspace cost of the initial state
+    double w_gp;                // Overflown population risk weight. Default: (1 - w_gp)
+    double w_ga;                // Airspace risk weight 
+    double asrisk_w_hmax;       // Airspace risk weight h_max
+    double asrisk_w_hmin;       // Airspace risk weight h_min
+
+    // HOLDING PATTERN
+    struct Pos *HoldingPoint;
+    struct Pos *holdInbound;
+    struct Pos *holdOutbound;
+    double maxObstacleHeight;
+    double minHoldArea;         // Minimum holding area (based on the turn radius: pi*R^2)
+    double minHoldOutboundAltitude; // Minimum holding outbound altitude
+    double *noFlyZoneVerticesLon; // No fly zone longitude coordinates
+    double *noFlyZoneVerticesLat; // No fly zone latitude coordinates
+    
+    // DUBINS AND SEARCH PATHS
+    struct DubinsPath *path2Hold;
+    struct DubinsPath *finalTurn;   
+    struct DubinsOpt *DubinsOpt;
+    struct Path *path;
+    struct Action *pathActions;
+    double overflownPop;
+    double airspaceOccup;
+    double dGamma;                  // Flight path angle modification (Deviation from the optimal glide angle) [deg]
+    double *altitudeModification;    // Altitude changes based on the flight path angle modification [ft]
+    double flightTime_gp;
+    double flightTime_ga;
+    
+    // LANDING SITES
+    int siteIndex;                  // Landing site ordered index
+    struct landingSite *nearest;    // Nearest landing sites
+    struct landingSite *bestSite;       // The best landing site based on a utility function
+    struct landingSite **rankedSites;
+    int numRanked;
+
+    // RUNTIME
+    double totalSearchRuntime;      // Total search runtime
+    double totalRiskRuntime;        // Total risk runtime of search only
+    double totalHoldPlanRuntime;    // Total holding pattern identification and 3D Dubins computation runtime
+    double holdPlanRiskRuntime;     // Total risk runtime of holding point identification only
+    
+} SearchProblem;
+
+void setUpProblem(SearchProblem *problem, const char* cfgdir);
+void getSolverType(SearchProblem *problem, const char* cfgdir);
+void readSolverType(SearchProblem *problem, const char* cfgdir);
+void findHoldInboundState(SearchProblem *problem, struct Pos *HoldingPoint);
+void computePath2Hold(SearchProblem *problem, char * folderName);
+void findHoldOutboundState(SearchProblem *problem);
+void loadHeatmaps(SearchProblem *problem);
+void loadInitialState(SearchProblem *problem, const char* cfgdir);
+void loadGoalState(SearchProblem *problem, const char* cfgdir);
+void loadTouchdownState(SearchProblem *problem, const char* cfgdir);
+void loadAircraftParams(SearchProblem *problem, const char* cfgdir);
+void loadEarthModelParams(SearchProblem *problem, const char* cfgdir);
+char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir);
+char *loadHoldingPatternParams(SearchProblem *problem, const char* cfgdir);
+void loadSearchParams(SearchProblem *problem, const char* cfgdir);
+double *getOptimalGamma(double *course, SearchProblem *problem);
+int readGammaStraight(struct Aircraft *ac, char *ac_name);
+void editCFG(char *origCfg, char *caseFolder, struct Pos *initial, struct Pos *goal, struct Pos *touchdown);
+int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * configfile);
+void copyCFGfile(const char *sourcePath, const char *destinationPath);
+landingSite* readLandingSites(const char *filename);
+int selectLandingSite(SearchProblem *problem);
+int cmp(const void *a, const void *b);
+void initDistanceParams (SearchProblem * problem, int siteIndex);
+
+double groundRisk(SearchProblem *problem, struct DubinsPath *dubins, char *filename, int type);
+double airspaceRisk(SearchProblem *problem, struct DubinsPath *dubins, char *filename, int type);
+
+void freeHeatmap(struct airspaceHeatmap * hm);
+void freeProblem(SearchProblem *problem);
+void freePath(struct Path *path);
+void printPointerAddress(SearchProblem *problem);
+
+#endif
