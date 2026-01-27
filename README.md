@@ -40,7 +40,8 @@ The repository includes curated datasets for Cessna 182 gliding aircraft perform
 ### 1️⃣ Gliding Aircraft Performance
 
 - **Cessna 182 Gliding Parameter Set and Flight Path Angle Look-Up Table**  
-  Precomputed table for estimating glide descent angles as a function of steady wind and aircraft heading.
+  1) Straight glide descent angles as a function of wind conditions.
+  2) Turn glide descent angles with formal forward invariance guarantee as a function of wind conditions.
 
 ### 2️⃣ Ground Risk Data
 
@@ -111,6 +112,7 @@ References for datasets:
 
 - **Gliding Cessna 182 Model and Flight Path Angle Look-Up Table**  
   H. E. Tekaslan and E. M. Atkins, “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, vol. 48, no. 8, pp. 1800–1817, 2025.
+  H. E. Tekaslan and E. M. Atkins, “Airspeed Viability for Gliders Under Ground-referenced Guidance,” _Robotics and Automation Letters_, vol. 48, no. 8, pp. 1800–1817, 2026.
 
 - **Washington D.C. Census Data (Shapefiles)**  
   U.S. Census Bureau, 2020 TIGER/Line Shapefiles\
