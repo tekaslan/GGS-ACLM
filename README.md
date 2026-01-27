@@ -106,13 +106,13 @@ Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wi
 - `-3`: The search open list (priority queue) is empty. A search-based solution was not found. Check the `results/` folder for a Dubins fallback solution if the case is reachable.
 
 ## 📚 Methodological Foundations
-- **Gradient-guided Search Path Planner**
+- **Gradient-guided Search Path Planner** .\
   Tekaslan, H. E. and Atkins, E. M., “Gradient-Guided Search for Aircraft Contingency Landing Planning,” _Drones_, Vol. 9, No. 9, 2025. https://doi.org/10.3390/drones9090642.
   
-- **Airspace Risk Modeling**
+- **Airspace Risk Modeling**.\
   Tekaslan, H. E. and Atkins, E. M., xxxxxxxxx. arXiv 2025, xxxxxxxx. https://doi.org/xxxxxxxxx
   
-- **Glide Descent Angle Derivation**
+- **Glide Descent Angle Derivation**.\
   Tekaslan, H. E. and Atkins, E. M., “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, Vol. 48, No. 8, pp. 1800–1817, 2025. https://doi.org/10.2514/1.G008803 .\
   Tekaslan, H. E. and Atkins, E. M., “Airspeed Viability for Gliders Under Ground-referenced Guidance,” _Robotics and Automation Letters_, Vol. xx, No. x, pp. xx, 2026.
 
