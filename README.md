@@ -111,8 +111,8 @@ Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wi
 References for datasets:
 
 - **Gliding Cessna 182 Model and Flight Path Angle Look-Up Table**  
-  H. E. Tekaslan and E. M. Atkins, “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, vol. 48, no. 8, pp. 1800–1817, 2025.
-  H. E. Tekaslan and E. M. Atkins, “Airspeed Viability for Gliders Under Ground-referenced Guidance,” _Robotics and Automation Letters_, vol. 48, no. 8, pp. 1800–1817, 2026.
+  1) H. E. Tekaslan and E. M. Atkins, “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, vol. 48, no. 8, pp. 1800–1817, 2025.
+  2) H. E. Tekaslan and E. M. Atkins, “Airspeed Viability for Gliders Under Ground-referenced Guidance,” _Robotics and Automation Letters_, vol. 48, no. 8, pp. 1800–1817, 2026.
 
 - **Washington D.C. Census Data (Shapefiles)**  
   U.S. Census Bureau, 2020 TIGER/Line Shapefiles\
