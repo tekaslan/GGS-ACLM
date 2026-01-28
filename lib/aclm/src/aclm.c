@@ -80,34 +80,6 @@ int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * confi
 
         return EXIT_SUCCESS;
 
-    } else if (problem->solver == DUBINS_SEARCH) {
-
-        // Load problem parameters
-        setUpProblem(problem, cfgdir);
-
-        // Reset timer
-        problem->totalHoldPlanRuntime = 0;    
-
-        // Find the shortest Dubins path to the best holding point
-        computePath2Hold(problem, casefolder);
-
-        // Find the hold outbound state
-        findHoldOutboundState(problem);
-
-        // Set the initial search state
-        problem->InitialSearch.lat = problem->holdOutbound->lat;
-        problem->InitialSearch.lon = problem->holdOutbound->lon;
-        problem->InitialSearch.alt = problem->holdOutbound->alt;
-        problem->InitialSearch.hdg = problem->holdOutbound->hdg;
-
-        // Initialize the search
-        initializeSearch(problem);
-
-        // Run the gradient-guided search emergency planing planning
-        runSearch(problem);
-
-        return EXIT_SUCCESS;
-
     } else if (problem->solver == SEARCH_AIRSPACE) {
 
         // Load problem parameters
@@ -176,7 +148,7 @@ int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * confi
         return EXIT_SUCCESS;
         
     } else {
-        perror("Incorrect solver type. Options -> 0: Search with ground-risk, 1: Holding pattern identification + Search + Dubins with ground risk, 2: Landing site selection + Search with ground and airspace risks");
+        perror("Incorrect solver type. Options -> 2: Landing site selection + Search with ground and airspace risks");
         return EXIT_FAILURE;
     }
 }
@@ -228,10 +200,6 @@ void setUpProblem(SearchProblem *problem, const char* cfgdir) {
     // Load population risk computation parameters 
     char *shapefiledir = loadRiskComputationParams(problem, cfgdir);
 
-    // Load holding pattern parameters
-    char *mergedshapefiledir = loadHoldingPatternParams(problem, cfgdir);
-    problem->minHoldArea = M_PI*pow(problem->ac->turnRadius*FT_2_M,2);
-
     // Load search parameters
     loadSearchParams(problem, cfgdir);
 
@@ -243,10 +211,6 @@ void setUpProblem(SearchProblem *problem, const char* cfgdir) {
     // Load census data
     problem->census = initCensus(shapefiledir);         // Population density query dataset
     free(shapefiledir); shapefiledir = NULL;
-    if (problem->solver == 1){
-        problem->merged = initCensus(mergedshapefiledir);   // Holding point query
-        free(mergedshapefiledir); mergedshapefiledir = NULL;
-    }
     
     // Get min. segment length
     problem->lmin = problem->ac->turnRadius * (tan(problem->deltaCourse[4]/2 * DEG_2_RAD) + tan(problem->deltaCourse[4]/2 * DEG_2_RAD));
@@ -473,37 +437,6 @@ char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir) {
 
     fclose(cfg);
 
-    return shapefiledir;
-}
-
-char *loadHoldingPatternParams(SearchProblem *problem, const char* cfgdir) {
-    FILE * cfg;
-    cfg = fopen(cfgdir, "r");
-    char line[300];
-    char *shapefiledir = (char *) malloc(300*sizeof(char));
-    problem->noFlyZoneVerticesLat = (double *) malloc(4*sizeof(double));
-    problem->noFlyZoneVerticesLon = (double *) malloc(4*sizeof(double));
-
-    while (fgets(line, sizeof(line), cfg)) {
-        if (strncmp(line, "MIN_HOLD_H", 10) == 0) {
-            sscanf(line, "MIN_HOLD_H = %lf", &problem->minHoldOutboundAltitude);
-        } else if (strncmp(line, "MAX_OBST_H", 10) == 0) {
-            sscanf(line, "MAX_OBST_H = %lf", &problem->maxObstacleHeight);
-        } else if (strncmp(line, "MERGED_SHPFILE_DIR", 18) == 0) {
-            sscanf(line, "MERGED_SHPFILE_DIR = %s", shapefiledir);
-        } else if (strncmp(line, "NOFLYZONE_VERT_LAT", 18) == 0) {
-            sscanf(line, "NOFLYZONE_VERT_LAT = %lf, %lf, %lf, %lf",  &problem->noFlyZoneVerticesLat[0],
-                                                                    &problem->noFlyZoneVerticesLat[1],
-                                                                    &problem->noFlyZoneVerticesLat[2],
-                                                                    &problem->noFlyZoneVerticesLat[3]);
-        } else if (strncmp(line, "NOFLYZONE_VERT_LON", 18) == 0) {
-            sscanf(line, "NOFLYZONE_VERT_LON = %lf, %lf, %lf, %lf",  &problem->noFlyZoneVerticesLon[0],
-                                                                    &problem->noFlyZoneVerticesLon [1],
-                                                                    &problem->noFlyZoneVerticesLon [2],
-                                                                    &problem->noFlyZoneVerticesLon [3]);
-        }
-    }
-    fclose(cfg);
     return shapefiledir;
 }
 
@@ -912,217 +845,6 @@ void readSolverType(SearchProblem *problem, const char* cfgdir) {
         }
     }
     fclose(cfg);
-}
-
-void findHoldInboundState(SearchProblem *problem, struct Pos *HoldingPoint)
-{
-    // Get the inbound course
-    double dist, course, bearing;
-    geo_dist(&problem->Initial, HoldingPoint, &dist, &course, &problem->GeoOpt);
-
-    // Get the inbound coordinates
-    problem->holdInbound= (struct Pos *) malloc(sizeof(struct Pos));
-    dist = problem->ac->turnRadius*FT_2_NM;
-    bearing = wrapTo360(course + 90);
-    geo_npos(HoldingPoint, problem->holdInbound, &dist, &bearing, &problem->GeoOpt);
-
-    // Assign the inbound course
-    problem->holdInbound->hdg = course;
-    // Note that the inbound altitude will be assigned after the Dubins path computation
-}
-
-void computePath2Hold(SearchProblem *problem, char * folderName)
-{
-    // Initialize the timer
-    clock_t begin = clock();
-
-    // Identify the best holding point
-    int *nHoldingPoints = (int *) malloc(sizeof(int));
-    struct HoldingPoint *candidateHoldingPoints = getOptimizedHoldingPoints(problem, nHoldingPoints);
-
-    clock_t begin_hp_risk = clock();
-    cumulOverflownPopulationRisk(candidateHoldingPoints, nHoldingPoints, problem);
-    clock_t end_hp_risk = clock();
-    problem->holdPlanRiskRuntime = (double) (end_hp_risk - begin_hp_risk)*1000 / CLOCKS_PER_SEC;
-    problem->HoldingPoint = getBestHoldingPoint(candidateHoldingPoints, nHoldingPoints);
-
-    // Identify the hold inbound state
-    findHoldInboundState(problem, problem->HoldingPoint);
-
-    // Set up the Dubins structure
-    problem->path2Hold = (struct DubinsPath *) malloc(sizeof(struct DubinsPath));
-
-    // Allocate trajectory structure memory
-    Traj_InitArray(problem->path2Hold->traj,4);
-
-    // Set Dubins' initial and final positions
-    problem->path2Hold->traj[0].wpt.pos = problem->Initial;
-    problem->path2Hold->traj[0].wpt.hdg = problem->Initial.hdg;
-    problem->path2Hold->traj[3].wpt.pos.lat = problem->holdInbound->lat;
-    problem->path2Hold->traj[3].wpt.pos.lon = problem->holdInbound->lon;
-    problem->path2Hold->traj[3].wpt.hdg = problem->holdInbound->hdg;
-
-    // Turn radius
-    problem->path2Hold->traj[0].wpt.rad = problem->ac->turnRadius * FT_2_NM;
-    problem->path2Hold->traj[1].wpt.rad = 0.0;
-    problem->path2Hold->traj[2].wpt.rad = problem->ac->turnRadius * FT_2_NM;
-
-    // Flight path angle for segments
-    double *gammaArray = getOptimalGamma(&problem->holdInbound->hdg, problem);
-    problem->path2Hold->traj[0].wpt.gam = -problem->ac->gammaOptTurn;
-    problem->path2Hold->traj[1].wpt.gam = -gammaArray[2];
-    problem->path2Hold->traj[2].wpt.gam = -problem->ac->gammaOptTurn;
-
-    // Compute the shortest path from the initial state to the holding inbound state
-    shortestDubins(problem->path2Hold, problem->DubinsOpt);
-
-    clock_t end = clock();
-    problem->totalHoldPlanRuntime = (double) (end - begin)*1000 / CLOCKS_PER_SEC;
-
-    double interval = 100;
-    int sampleSize;
-    char * filedir = (char *) malloc(256*sizeof(char));
-    sprintf(filedir, "%s/%s", folderName, "dubinstohold.csv");
-    getDubinsCoordinates(problem->path2Hold, interval, &sampleSize, &problem->GeoOpt, filedir);
-
-    free(gammaArray); gammaArray = NULL;
-    free(filedir); filedir = NULL;
-    free(nHoldingPoints); nHoldingPoints = NULL;
-}
-
-void findHoldOutboundState(SearchProblem *problem)
-{
-    // Determine if hold pattern is executed
-    bool holdFlag = false;
-    if (problem->path2Hold->traj[3].wpt.pos.alt > problem->crossoverAlt) holdFlag = true;
-
-    // High-altitude case
-    if (holdFlag) {
-
-        // Get the distance and bearing angle from the holding pattern center to the goal state
-        double dist, bearing;
-        geo_dist(problem->HoldingPoint, &problem->Goal, &dist, &bearing, &problem->GeoOpt);
-        dist *= NM_2_FT;
-
-        // Get the optimal flight path angle to the goal state
-        double *gammaArray = getOptimalGamma(&bearing, problem);
-
-        // Optimum altitude at the hold outbound
-        double optOutboundAltitude = dist*tan(gammaArray[2]*DEG_2_RAD);
-
-        // Hold outbound altitude
-        double outboundAltitude = max(problem->maxObstacleHeight, max(optOutboundAltitude, 1000)) + 1500;
-        
-        // Number of hold turns
-        double nturns = (problem->path2Hold->traj[3].wpt.pos.alt - outboundAltitude)/(2*M_PI*problem->ac->turnRadius*tan(DEG_2_RAD*problem->ac->gammaOptTurn));
-
-        // Hold outbound course angle
-        double outboundCourse = wrapTo360(problem->path2Hold->traj[3].wpt.hdg - (nturns - (int) nturns) * 360);
-
-        // Hold outbound coordinates
-        geo_dist(problem->HoldingPoint, &problem->path2Hold->traj[3].wpt.pos, &dist, &bearing, &problem->GeoOpt);
-        bearing = wrapTo360(bearing - (nturns - (int) nturns) * 360);
-        dist = problem->ac->turnRadius * FT_2_NM;
-
-        problem->holdOutbound = (struct Pos *) malloc(sizeof(struct Pos));
-        geo_npos(problem->HoldingPoint, problem->holdOutbound, &dist, &bearing, &problem->GeoOpt);
-
-        // Update altitude and course
-        problem->holdOutbound->alt = outboundAltitude;
-        problem->holdOutbound->hdg = outboundCourse;
-
-        free(gammaArray); gammaArray = NULL;
-    }
-    // Transition case
-    else {   
-        // Determine the hold outbound state
-        if (problem->path2Hold->traj[1].wpt.pos.alt < problem->crossoverAlt) {
-            
-
-            // First orbit turn direction
-            int turnDir;
-            if ((problem->path2Hold->type == 0) || (problem->path2Hold->type == 1))
-            {
-                turnDir = 1;
-            }
-            else
-            {
-                turnDir = -1;
-            }
-
-            // How much excess altitude aircraft has before crossing the crossover altitude
-            double dAltitude = problem->Initial.alt - problem->crossoverAlt;
-
-            // How much heading change causes aircraft to lose the excess altitude
-            double dPsi = (dAltitude/(problem->ac->turnRadius*tan(DEG_2_RAD*problem->ac->gammaOptTurn))) * RAD_2_DEG;
-
-            // Hold outbound coordinates
-            double dist, bearing;
-            geo_dist(&problem->path2Hold->orbit1, &problem->Initial, &dist, &bearing, &problem->GeoOpt);
-            double new_bearing = wrapTo360(bearing + dPsi*turnDir);
-
-            // Hold outbound coordinates
-            problem->holdOutbound = (struct Pos *) malloc(sizeof(struct Pos));
-            geo_npos(&problem->path2Hold->orbit1, problem->holdOutbound, &dist, &new_bearing, &problem->GeoOpt);
-
-            // Hold outbound course
-            double outboundCourse = wrapTo360(problem->Initial.hdg + dPsi*turnDir);
-            
-            // Update altitude and course
-            problem->holdOutbound->alt = problem->crossoverAlt;
-            problem->holdOutbound->hdg = outboundCourse;
-
-        } else if (problem->path2Hold->traj[2].wpt.pos.alt < problem->crossoverAlt) {
-
-            // Traversal to cross the crossover altitude after the first turn is completed.
-            double dLength = (problem->path2Hold->traj[1].wpt.pos.alt - problem->crossoverAlt)/tan(DEG_2_RAD*fabs(problem->path2Hold->traj[1].wpt.gam));
-            dLength *= FT_2_NM;
-
-            // Hold outbound
-            problem->holdOutbound = (struct Pos *) malloc(sizeof(struct Pos));
-            geo_npos(&problem->path2Hold->traj[1].wpt.pos, problem->holdOutbound, &dLength, &problem->path2Hold->traj[1].wpt.hdg, &problem->GeoOpt);
-
-            // Update altitude and course
-            problem->holdOutbound->alt = problem->crossoverAlt;
-            problem->holdOutbound->hdg = problem->path2Hold->traj[1].wpt.hdg;
-
-        } else if (problem->path2Hold->traj[3].wpt.pos.alt < problem->crossoverAlt) {
-
-            // Second orbit turn direction
-            int turnDir;
-            if ((problem->path2Hold->type == 0) || (problem->path2Hold->type == 1))
-            {
-                turnDir = 1;
-            }
-            else
-            {
-                turnDir = -1;
-            }
-
-            // How much excess altitude aircraft has before crossing the crossover altitude
-            double dAltitude = problem->path2Hold->traj[2].wpt.pos.alt - problem->crossoverAlt;
-
-            // How much heading change causes aircraft to lose the excess altitude
-            double dPsi = (dAltitude/(problem->ac->turnRadius*tan(DEG_2_RAD*problem->ac->gammaOptTurn))) * RAD_2_DEG;
-
-            // Hold outbound coordinates
-            double dist, bearing;
-            geo_dist(&problem->path2Hold->orbit2, &problem->path2Hold->traj[2].wpt.pos, &dist, &bearing, &problem->GeoOpt);
-            double new_bearing = wrapTo360(bearing + dPsi*turnDir);
-
-            // Hold outbound coordinates
-            problem->holdOutbound = (struct Pos *) malloc(sizeof(struct Pos));
-            geo_npos(&problem->path2Hold->orbit1, problem->holdOutbound, &dist, &new_bearing, &problem->GeoOpt);
-
-            // Hold outbound course
-            double outboundCourse = wrapTo360(problem->Initial.hdg + dPsi*turnDir);
-            
-            // Update altitude and course
-            problem->holdOutbound->alt = problem->crossoverAlt;
-            problem->holdOutbound->hdg = outboundCourse;
-        }
-    }
-
 }
 
 void editCFG(char *origCfg, char *caseFolder, struct Pos *initial, struct Pos *goal, struct Pos *touchdown)
