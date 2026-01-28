@@ -336,6 +336,7 @@ double wrapTo180(double angle)
     }
     return angle - 180.0;
 }
+
 /*
     Returns an upper bound to the discrete search space size
 */
