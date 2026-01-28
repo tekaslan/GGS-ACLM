@@ -333,8 +333,7 @@ void getIntermediateWaypoint(struct Pos *interWaypoint0,
 struct DubinsPath *computeSturnDubins(struct DubinsPath *dubins,
                                     double dAltitude,
                                     int extendTo,
-                                    struct DubinsOpt * const opt,
-                                    struct GeoOpt *GeoOpt)
+                                    SearchProblem * problem)
 {
 
     // Set the initial intermediate waypoint along the straight segment
@@ -346,7 +345,7 @@ struct DubinsPath *computeSturnDubins(struct DubinsPath *dubins,
 
     // Get the initial straight segment length
     double straightLength, course;
-    geo_dist(&dubins->traj[1].wpt.pos, &dubins->traj[2].wpt.pos, &straightLength, &course, GeoOpt);
+    geo_dist(&dubins->traj[1].wpt.pos, &dubins->traj[2].wpt.pos, &straightLength, &course, &problem->GeoOpt);
 
     // Initialize the actual altitude loss
     double dh = dubins->traj[0].wpt.pos.alt - dubins->traj[3].wpt.pos.alt;
@@ -371,17 +370,25 @@ struct DubinsPath *computeSturnDubins(struct DubinsPath *dubins,
         Traj_CopyAll(dubins->traj, sTurnPath[1].traj);
         
         // Get an intermediate waypoint
-        getIntermediateWaypoint(&interWaypoint0, &interWaypoint, straightLength, theta, extendTo, GeoOpt);
+        getIntermediateWaypoint(&interWaypoint0, &interWaypoint, straightLength, theta, extendTo, &problem->GeoOpt);
 
         // Update the Sturn path structures
         sTurnPath[0].traj[3].wpt.pos = interWaypoint;
         sTurnPath[0].traj[3].wpt.hdg = interWaypoint.hdg;
-        shortestDubins(&sTurnPath[0], opt);
+
+        // Initial estimate
+        shortestDubins(&sTurnPath[0], problem->DubinsOpt); 
+
+        // Update the turn flight path angles given heading changes and wind conditions
+        updateOptimalGammaTurn(&sTurnPath[0], problem);
+        shortestDubins(&sTurnPath[0], problem->DubinsOpt);
 
         sTurnPath[1].traj[0].wpt.pos = interWaypoint;
         sTurnPath[1].traj[0].wpt.hdg = interWaypoint.hdg;
         sTurnPath[1].traj[0].wpt.pos.alt = sTurnPath[0].traj[3].wpt.pos.alt;
-        shortestDubins(&sTurnPath[1], opt);
+        shortestDubins(&sTurnPath[1], problem->DubinsOpt);
+        updateOptimalGammaTurn(&sTurnPath[1], problem);
+        shortestDubins(&sTurnPath[1], problem->DubinsOpt);
 
         // Check altitude loss
         dh = sTurnPath[0].traj[0].wpt.pos.alt - sTurnPath[1].traj[3].wpt.pos.alt;
@@ -395,6 +402,58 @@ struct DubinsPath *computeSturnDubins(struct DubinsPath *dubins,
     }
 
     return sTurnPath;
+}
+
+void updateOptimalGammaTurn(struct DubinsPath * dubins, SearchProblem * problem){
+    
+    // First orbit optimal flight path angle
+    double dPsi1 = dubins->traj[0].dpsi;
+    Node tmp_node;
+    tmp_node.state.hdg = dubins->traj[0].wpt.hdg;
+    tmp_node.action = calloc(1, sizeof(Action));
+    if (fabs(dPsi1) <= 90 + 1e-1){
+        tmp_node.action->deltaCourse = dPsi1;
+        dubins->traj[0].wpt.gam = -getOptimalGammaTurn(&tmp_node, problem);
+    } else {
+        int nturns = (int) fabs(dPsi1)/90;
+        double rem = fmod(dPsi1, 90.0);
+        double weightedSum = 0;
+        int sign = dPsi1/fabs(dPsi1);
+        for (int i = 0; i < nturns; i++){
+            tmp_node.action->deltaCourse = 90*sign;
+            double gamma = -getOptimalGammaTurn(&tmp_node, problem);
+            weightedSum += gamma*90;
+            tmp_node.state.hdg = wrapTo360(tmp_node.state.hdg + 90*sign);
+        }
+        tmp_node.action->deltaCourse = rem;
+        double gamma = -getOptimalGammaTurn(&tmp_node, problem);
+        weightedSum += gamma*fabs(rem);
+        dubins->traj[0].wpt.gam = weightedSum/fabs(dPsi1);
+    }
+
+    // Second orbit optimal flight path angle
+    double dPsi2 = dubins->traj[2].dpsi;
+    tmp_node.state.hdg = dubins->traj[1].wpt.hdg;
+    if (fabs(dPsi2) <= 90 + 1e-1){
+        tmp_node.action->deltaCourse = dPsi2;
+        dubins->traj[2].wpt.gam = -getOptimalGammaTurn(&tmp_node, problem);
+    } else {
+        int nturns = (int) fabs(dPsi2)/90;
+        double rem = fmod(dPsi2, 90.0);
+        double weightedSum = 0;
+        int sign = dPsi2/fabs(dPsi2);
+        for (int i = 0; i < nturns; i++){
+            tmp_node.action->deltaCourse = 90*sign;
+            double gamma = -getOptimalGammaTurn(&tmp_node, problem);
+            weightedSum += gamma*90;
+            tmp_node.state.hdg = wrapTo360(tmp_node.state.hdg + 90*sign);
+        }
+        tmp_node.action->deltaCourse = rem;
+        double gamma = -getOptimalGammaTurn(&tmp_node, problem);
+        weightedSum += gamma*fabs(rem);
+        dubins->traj[2].wpt.gam = weightedSum/fabs(dPsi2);
+    }
+    free(tmp_node.action); tmp_node.action=NULL;
 }
  
 /*
@@ -535,7 +594,7 @@ struct DubinsPath *getBestSturnPath(struct DubinsPath *dubins,
     double htol = 5;    // Altitude error tolerance [ft]
 
     for (int i = 0; i < 2; i++) {
-        tmp_sturn[i] = computeSturnDubins(dubins, dAltitude, extendTo[i], problem->DubinsOpt, &problem->GeoOpt);
+        tmp_sturn[i] = computeSturnDubins(dubins, dAltitude, extendTo[i], problem);
         if (!tmp_sturn[i]) continue;
 
         double alt_change = tmp_sturn[i][0].traj[0].wpt.pos.alt - tmp_sturn[i][1].traj[3].wpt.pos.alt;
@@ -672,9 +731,51 @@ struct DubinsPath *getMinRiskDubinsPath(struct DubinsPath *dubins,
         traj_calctraj_angdist(&(tmp_path[type].traj[0]), 0, &(problem->DubinsOpt->trajopt));
         Traj_Calc3D(&(tmp_path[type].traj[0]), 0, &(problem->DubinsOpt->trajopt));
 
+        // for (int i = 0; i < 4; i++){
+        //     printf("%f, %f, %f, %f, gam: %f, hdist: %f\n", tmp_path[type].traj[i].wpt.pos.lat,
+        //                                                     tmp_path[type].traj[i].wpt.pos.lon,
+        //                                                 tmp_path[type].traj[i].wpt.pos.alt,
+        //                                             tmp_path[type].traj[i].wpt.pos.hdg,
+        //                                         tmp_path[type].traj[i].wpt.gam,
+        //                                     tmp_path[type].traj[i].hdist);
+        // }
+
         // If the case cannot be solved, assign NAN to the horizontal path length.
-        // printf("tmp_path[type].traj[3].wpt.pos.alt %f\n", tmp_path[type].traj[3].wpt.pos.alt);
         if (isnan(tmp_path[type].traj[3].wpt.pos.alt)) {tmp_path[type].hdist = NAN; continue;};
+
+        // // Update the optimal turn flight path angles
+        updateOptimalGammaTurn(&tmp_path[type], problem);
+        double gamma1 = tmp_path[type].traj[0].wpt.gam;
+        double gamma2 = tmp_path[type].traj[2].wpt.gam;
+
+        // Clean initialization
+        Traj_CopyAll(dubins->traj, tmp_path[type].traj);
+        tmp_path[type].traj[0].wpt.gam = gamma1;
+        tmp_path[type].traj[2].wpt.gam = gamma2;
+
+        // Initialize the path variables
+        tmp_path[type].type = type + 1;
+        tmp_path[type].hdist = 0;
+        tmp_path[type].size = 0;
+        tmp_path[type].gp = INFINITY;
+        tmp_path[type].ga = INFINITY;
+        tmp_path[type].risk = INFINITY;
+
+        // Recompute the Dubins path
+        // printf("Recomputing...\n");
+        tmp_path[type].hdist = 0;
+        Dubins(&tmp_path[type], problem->DubinsOpt);
+        traj_calctraj_angdist(&(tmp_path[type].traj[0]), 0, &(problem->DubinsOpt->trajopt));
+        Traj_Calc3D(&(tmp_path[type].traj[0]), 0, &(problem->DubinsOpt->trajopt));
+
+        // for (int i = 0; i < 4; i++){
+        //     printf("%f, %f, %f, %f, gam: %f, hdist: %f\n", tmp_path[type].traj[i].wpt.pos.lat,
+        //                                                     tmp_path[type].traj[i].wpt.pos.lon,
+        //                                                 tmp_path[type].traj[i].wpt.pos.alt,
+        //                                             tmp_path[type].traj[i].wpt.pos.hdg,
+        //                                         tmp_path[type].traj[i].wpt.gam,
+        //                                     tmp_path[type].traj[i].hdist);
+        // }
 
         // Check altitude loss
         double dh = tmp_path[type].traj[0].wpt.pos.alt - tmp_path[type].traj[3].wpt.pos.alt;
