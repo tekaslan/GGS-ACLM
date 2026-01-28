@@ -45,11 +45,11 @@ typedef struct Action {
     double deltaCourse; // deg
     double length;      // ft
     double gamma;       // deg
+    double gamma_turn;  // deg
 } Action;
 
 void initializeSearch(SearchProblem * problem);
 Action *getActions(struct Node * node, SearchProblem *problem);
-// struct Pos *result(struct Pos *state, Action *action, Action *parent_action, SearchProblem *problem);
 struct Pos *result(Node *node, Action *action, SearchProblem *problem);
 double *distanceCost(struct Pos *state, double length, SearchProblem *problem);
 double courseCost(struct Pos *state, SearchProblem *problem);
