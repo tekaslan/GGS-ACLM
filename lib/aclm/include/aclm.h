@@ -213,7 +213,6 @@ void loadTouchdownState(SearchProblem *problem, const char* cfgdir);
 void loadAircraftParams(SearchProblem *problem, const char* cfgdir);
 void loadEarthModelParams(SearchProblem *problem, const char* cfgdir);
 char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir);
-char *loadHoldingPatternParams(SearchProblem *problem, const char* cfgdir);
 void loadSearchParams(SearchProblem *problem, const char* cfgdir);
 double *getOptimalGamma(double *course, SearchProblem *problem);
 double getOptimalGammaTurn(Node *node, SearchProblem *problem);
