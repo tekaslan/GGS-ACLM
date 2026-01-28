@@ -76,8 +76,7 @@ void getIntermediateWaypoint(struct Pos *interWaypoint0,
 struct DubinsPath *computeSturnDubins(struct DubinsPath *dubins,
                                     double dAltitude,
                                     int extendTo,
-                                    struct DubinsOpt * const opt,
-                                    struct GeoOpt *GeoOpt);
+                                    SearchProblem * problem);
 
 struct Pos *getDubinsCoordinates(struct DubinsPath *dubins,
                                 double interval, 
@@ -103,5 +102,7 @@ struct DubinsPath *getMinRiskDubinsPath(struct DubinsPath *dubins,
                                         double *riskRuntime);
 
 int getDubinsWithType(struct DubinsPath * const dubins, int type, struct DubinsOpt * const opt);
+
+void updateOptimalGammaTurn(struct DubinsPath * dubins, SearchProblem * problem);
 
 #endif
