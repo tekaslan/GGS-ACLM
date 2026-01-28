@@ -24,26 +24,40 @@
 #define ACLM_H
 
 #include "search.h"
+#include "holdingpoint.h"
 #include "geo_structs.h"
 #include "airtraffic.h"
+#include "math_utils.h"
+#include "node.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 // struct GeoOpt;
 typedef struct PriorityQueue PriorityQueue;
 typedef struct closedList closedList;
+typedef struct Node Node;
 
-typedef struct Aircraft
-{
+// Grid sizes of the optimal gamma data for straight flight
+#define NDIR_STR 9
+
+// Grid sizes of the optimal turn gamma data
+#define NW   9                 // wind speeds 0:1:8 m/s
+#define NDIR 24                // relWindDeg -180:15:165
+#define NCASE 12               // deltaChi {-90:15:90} ~~~excluding {0}
+
+typedef struct Aircraft {
     double turnRadius;      // ft
     double airspeed;        // ft/s
-    double gammaOptTurn;    // Optimal flight path angle for turn [deg]
-    double gammaBGturn;     // Best-glide flight path angle for turn [deg]
-    double gammaOpt;        // Optimal flight path angle for forward flight [deg]
-    double gamma_bg[9][9];  // deg
-    double gamma_vfe[9][9]; // deg
+    double gammaOptTurn;    // [deg]
+    double gammaBGturn;     // [deg]
+    double gammaOpt;        // [deg]
+    double gamma_bg[NW][NDIR_STR];  // [deg]
+    double gamma_vfe[NW][NDIR_STR]; // [deg]
+    double gamma_opt[NW][NDIR_STR];  // [deg]
+    double gamma_turn[NW][NDIR][NCASE]; // [deg] -> [windSpeed][relWind][deltaChiCase]
 } Aircraft;
 
 // Solver type structure
@@ -203,7 +217,11 @@ char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir);
 char *loadHoldingPatternParams(SearchProblem *problem, const char* cfgdir);
 void loadSearchParams(SearchProblem *problem, const char* cfgdir);
 double *getOptimalGamma(double *course, SearchProblem *problem);
+double getOptimalGammaTurn(Node *node, SearchProblem *problem);
+double getViableGamma(Node *node, SearchProblem *problem);
 int readGammaStraight(struct Aircraft *ac, char *ac_name);
+static int read_exact(void *dst, size_t sz, size_t n, FILE *f);
+static int readGammaTurn(Aircraft *ac);
 void editCFG(char *origCfg, char *caseFolder, struct Pos *initial, struct Pos *goal, struct Pos *touchdown);
 int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * configfile);
 void copyCFGfile(const char *sourcePath, const char *destinationPath);
@@ -211,6 +229,7 @@ landingSite* readLandingSites(const char *filename);
 int selectLandingSite(SearchProblem *problem);
 int cmp(const void *a, const void *b);
 void initDistanceParams (SearchProblem * problem, int siteIndex);
+struct DubinsPath *minRiskDubins(struct DubinsPath *dubins, SearchProblem * problem, double * totalRuntime, double * riskRuntime);
 
 double groundRisk(SearchProblem *problem, struct DubinsPath *dubins, char *filename, int type);
 double airspaceRisk(SearchProblem *problem, struct DubinsPath *dubins, char *filename, int type);
