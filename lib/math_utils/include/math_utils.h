@@ -109,9 +109,10 @@ double distance_point2edge(struct PosXYZ *p, struct PosXYZ *edge_point1, struct 
 double distance_point2vertex(struct PosXYZ *pos, struct surface *surface);
 
 /*
-    Wraps the given angle to 360 degrees
+    Wraps the given angle to 360 and 180 degrees
 */
 double wrapTo360(double angle);
+double wrapTo180(double angle);
 
 /*
     Returns an upper bound to the discrete search space size
