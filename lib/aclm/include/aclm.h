@@ -24,7 +24,6 @@
 #define ACLM_H
 
 #include "search.h"
-#include "holdingpoint.h"
 #include "geo_structs.h"
 #include "airtraffic.h"
 #include "math_utils.h"
