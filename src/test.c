@@ -45,31 +45,6 @@
 #include "aclm.h"
 #include <sys/stat.h>
 
-struct DubinsPath *minRiskDubins(struct DubinsPath *dubins, SearchProblem * problem, double * totalRuntime, double * riskRuntime)
-{
-    // Initialize Dubins structure
-    Traj_InitArray(dubins->traj, 4);
-    dubins->traj[0].wpt.pos = problem->InitialSearch;
-    dubins->traj[0].wpt.hdg = problem->InitialSearch.hdg;
-    dubins->traj[3].wpt.pos = problem->Goal;
-    dubins->traj[3].wpt.hdg = problem->Goal.hdg;
-
-    dubins->traj[0].wpt.gam = -problem->ac->gammaOptTurn;
-    dubins->traj[1].wpt.gam = -problem->gammaOpt;
-    dubins->traj[2].wpt.gam = -problem->ac->gammaOptTurn;
-
-    dubins->traj[0].wpt.rad = problem->ac->turnRadius*FT_2_NM;
-    dubins->traj[1].wpt.rad = 0;
-    dubins->traj[2].wpt.rad = problem->ac->turnRadius*FT_2_NM;
-        
-    // Compute the min. risk Dubins path
-    dubins->feasible = true;
-    struct DubinsPath *bestDubins = getMinRiskDubinsPath(dubins, problem, totalRuntime, riskRuntime);
-
-    return bestDubins;
-}
-
-
 int main()
 {
     /*
