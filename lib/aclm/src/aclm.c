@@ -33,7 +33,7 @@
 #    Kevin T. Crofton Aerospace and Ocean Engineering Department                    %
 #                                                                                   %
 #    Author  : H. Emre Tekaslan (tekaslan@vt.edu)                                   %
-#    Date    : April 2025                                                           %
+#    Date    : January 2026                                                         %
 #                                                                                   %
 #    Google Scholar  : https://scholar.google.com/citations?user=uKn-WSIAAAAJ&hl=en %
 #    LinkedIn        : https://www.linkedin.com/in/tekaslan/                        %
@@ -43,17 +43,16 @@
 
 #include "aclm.h"
 
-int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * configfile)
-{
+int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * configfile) {
 
-    printf("********************************************************************************************\n");
-    printf("* Airspace and Ground Risk-aware                                                           *\n");
-    printf("* Aircraft Contingency Landing Planner                                                     *\n");
-    printf("* Using Gradient-guided 4D Discrete Search and 3D Dubins Solver                            *\n");
-    printf("* Copyright (C) 2025 Huseyin Emre Tekaslan, (tekaslan@vt.edu) @ A2Sys Lab, Virginia Tech   *\n");
-    printf("* This program comes with ABSOLUTELY NO WARRANTY.                                          *\n");
-    printf("* This is a free software, and you are welcome to redistribute it under certain conditions.*\n");
-    printf("********************************************************************************************\n");
+    printf("*******************************************************************************************\n");
+    printf("* Airspace and Ground Risk-aware                                                          *\n");
+    printf("* Aircraft Contingency Landing Planner                                                    *\n");
+    printf("* Using Gradient-guided 4D Discrete Search and 3D Dubins Solver                           *\n");
+    printf("* Copyright (C) 2025 Huseyin Emre Tekaslan, (tekaslan@vt.edu) @ A2Sys Lab, Virginia Tech  *\n");
+    printf("* This program comes with ABSOLUTELY NO WARRANTY.                                         *\n");
+    printf("* This is free software, and you are welcome to redistribute it under certain conditions. *\n");
+    printf("*******************************************************************************************\n");
 
     // Initialize exit flag
     problem->exitFlag = 9;
@@ -72,6 +71,34 @@ int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * confi
         setUpProblem(problem, cfgdir);
 
         problem->InitialSearch = problem->Initial;
+
+        // Initialize the search
+        initializeSearch(problem);
+
+        // Run the gradient-guided search emergency planing planning
+        runSearch(problem);
+
+        return EXIT_SUCCESS;
+
+    } else if (problem->solver == DUBINS_SEARCH) {
+
+        // Load problem parameters
+        setUpProblem(problem, cfgdir);
+
+        // Reset timer
+        problem->totalHoldPlanRuntime = 0;    
+
+        // Find the shortest Dubins path to the best holding point
+        computePath2Hold(problem, casefolder);
+
+        // Find the hold outbound state
+        findHoldOutboundState(problem);
+
+        // Set the initial search state
+        problem->InitialSearch.lat = problem->holdOutbound->lat;
+        problem->InitialSearch.lon = problem->holdOutbound->lon;
+        problem->InitialSearch.alt = problem->holdOutbound->alt;
+        problem->InitialSearch.hdg = problem->holdOutbound->hdg;
 
         // Initialize the search
         initializeSearch(problem);
@@ -103,7 +130,6 @@ int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * confi
         double runtime = 0;
         problem->siteIndex = -1;
         while (((problem->exitFlag == 2 || problem->exitFlag == -3) || problem->siteIndex == -1) && (problem->siteIndex < problem->numRanked - 1)) {
-        // while (((problem->exitFlag == 2 || problem->exitFlag == -3) || problem->siteIndex == -1) && (problem->siteIndex < 0)) {
 
             // Update landing site ordered index
             problem->siteIndex++;
@@ -150,7 +176,7 @@ int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * confi
         return EXIT_SUCCESS;
         
     } else {
-        perror("Incorrect solver type. Options -> 0: Search with ground-risk, 1: N/A, 2: Landing site selection + Search with ground and airspace risks");
+        perror("Incorrect solver type. Options -> 0: Search with ground-risk, 1: Holding pattern identification + Search + Dubins with ground risk, 2: Landing site selection + Search with ground and airspace risks");
         return EXIT_FAILURE;
     }
 }
@@ -158,8 +184,7 @@ int runEmergencyPlanning(SearchProblem *problem, char * casefolder, char * confi
 /*
     Sets up the emergency path planning problem
 */
-void setUpProblem(SearchProblem *problem, const char* cfgdir)
-{
+void setUpProblem(SearchProblem *problem, const char* cfgdir) {
 
     // Avoid dangling pointers
     problem->ac = NULL;
@@ -170,6 +195,10 @@ void setUpProblem(SearchProblem *problem, const char* cfgdir)
     problem->prohibited = NULL;
     problem->pq = NULL;
     problem->explored = NULL;
+
+    problem->HoldingPoint = NULL;
+    problem->holdInbound = NULL;
+    problem->holdOutbound = NULL;
 
     problem->path2Hold = NULL;
     problem->finalTurn = NULL;
@@ -209,6 +238,7 @@ void setUpProblem(SearchProblem *problem, const char* cfgdir)
     // Load flight path angle datasets
     char ac_name[10] = "c182";
     readGammaStraight(problem->ac, ac_name);
+    readGammaTurn(problem->ac);
 
     // Load census data
     problem->census = initCensus(shapefiledir);         // Population density query dataset
@@ -248,10 +278,9 @@ void setUpProblem(SearchProblem *problem, const char* cfgdir)
 
 /*
     Loads airspace heatmaps into structures
-    Grid sizes are manually defined inside the function.
+    Grid sizes are hard-coded in the function.
 */
-void loadHeatmaps(SearchProblem *problem)
-{
+void loadHeatmaps(SearchProblem *problem) {
 
     // Air traffic heatmap
     problem->traffic = (airspaceHeatmap * ) calloc(1,sizeof(airspaceHeatmap));
@@ -289,8 +318,7 @@ void loadHeatmaps(SearchProblem *problem)
 
 }
 
-void loadInitialState(SearchProblem *problem, const char* cfgdir)
-{
+void loadInitialState(SearchProblem *problem, const char* cfgdir) {
     FILE * cfg;
     cfg = fopen(cfgdir, "r");
     char line[300];
@@ -313,8 +341,7 @@ void loadInitialState(SearchProblem *problem, const char* cfgdir)
     }
 }
 
-void loadGoalState(SearchProblem *problem, const char* cfgdir)
-{
+void loadGoalState(SearchProblem *problem, const char* cfgdir) {
     FILE * cfg;
     cfg = fopen(cfgdir, "r");
     char line[300];
@@ -333,8 +360,7 @@ void loadGoalState(SearchProblem *problem, const char* cfgdir)
     fclose(cfg);
 }
 
-void loadTouchdownState(SearchProblem *problem, const char* cfgdir)
-{
+void loadTouchdownState(SearchProblem *problem, const char* cfgdir) {
     FILE *cfg = fopen(cfgdir, "r");
     if (cfg == NULL) {
         perror("Failed to open configuration file");
@@ -368,8 +394,7 @@ void loadTouchdownState(SearchProblem *problem, const char* cfgdir)
 
     fclose(cfg);
 }
-void loadAircraftParams(SearchProblem *problem, const char* cfgdir)
-{
+void loadAircraftParams(SearchProblem *problem, const char* cfgdir) {
     FILE * cfg;
     cfg = fopen(cfgdir, "r");
     char line[300];
@@ -392,8 +417,7 @@ void loadAircraftParams(SearchProblem *problem, const char* cfgdir)
     fclose(cfg);
 }
 
-void loadEarthModelParams(SearchProblem *problem, const char* cfgdir)
-{
+void loadEarthModelParams(SearchProblem *problem, const char* cfgdir) {
     FILE * cfg;
     cfg = fopen(cfgdir, "r");
     char line[300];
@@ -412,8 +436,7 @@ void loadEarthModelParams(SearchProblem *problem, const char* cfgdir)
     fclose(cfg);
 }
 
-char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir)
-{
+char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir) {
     FILE * cfg;
     cfg = fopen(cfgdir, "r");
     char line[300];
@@ -453,8 +476,7 @@ char *loadRiskComputationParams(SearchProblem *problem, const char* cfgdir)
     return shapefiledir;
 }
 
-char *loadHoldingPatternParams(SearchProblem *problem, const char* cfgdir)
-{
+char *loadHoldingPatternParams(SearchProblem *problem, const char* cfgdir) {
     FILE * cfg;
     cfg = fopen(cfgdir, "r");
     char line[300];
@@ -485,8 +507,7 @@ char *loadHoldingPatternParams(SearchProblem *problem, const char* cfgdir)
     return shapefiledir;
 }
 
-void loadSearchParams(SearchProblem *problem, const char* cfgdir)
-{
+void loadSearchParams(SearchProblem *problem, const char* cfgdir) {
     FILE * cfg;
     cfg = fopen(cfgdir, "r");
     char line[300];
@@ -516,8 +537,7 @@ void loadSearchParams(SearchProblem *problem, const char* cfgdir)
     Returns flight path angle array for the straight segment
     Output = [gamma_bg, gamma_vfe, gamma_opt]
 */
-double *getOptimalGamma(double *course, SearchProblem *problem)
-{
+double *getOptimalGamma(double *course, SearchProblem *problem) {
 
     /* Angular difference of wind and straight path segment */
     double angDiff;
@@ -556,7 +576,15 @@ double *getOptimalGamma(double *course, SearchProblem *problem)
     double gamma_vfe = (tmpLookUp[windSpeedIdx+1] - tmpLookUp[windSpeedIdx])*
                         (problem->windSpeed*KT_2_MS - windSpeed[windSpeedIdx]) + tmpLookUp[windSpeedIdx];
 
-    
+    // Interpolate w.r.t to direction
+    for (int i = 0; i < 9; i++) {
+        tmpLookUp[i] = (angDiff - windDir[windDirIdx])*(problem->ac->gamma_opt[i][windDirIdx+1] - problem->ac->gamma_opt[i][windDirIdx])/(windDir[windDirIdx+1] - windDir[windDirIdx]) + problem->ac->gamma_opt[i][windDirIdx];
+    }
+
+    // Interpolate w.r.t to speed
+    double gamma_opt = (tmpLookUp[windSpeedIdx+1] - tmpLookUp[windSpeedIdx])*
+                        (problem->windSpeed*KT_2_MS - windSpeed[windSpeedIdx]) + tmpLookUp[windSpeedIdx];
+
     // Flight path angles
     double *gamma = (double *) malloc(3*sizeof(double));
     if (gamma == NULL) {
@@ -566,35 +594,181 @@ double *getOptimalGamma(double *course, SearchProblem *problem)
 
     gamma[0] = -gamma_bg;
     gamma[1] = -gamma_vfe;
-    gamma[2] = -0.5*(gamma_bg + gamma_vfe);
+    gamma[2] = -gamma_opt;
 
     return gamma;
 }
 
 /*
+    Returns the optimal flight path angle for turns
+    to maintain the airspeed
+*/
+double getOptimalGammaTurn(Node *node, SearchProblem *problem) {
+    // Dataset indices
+    size_t i = 0, j = 0, k = 0;
+
+    // Relative wind angle β = windDir - heading, wrapped to [-180,180)
+    double angDiff = wrapTo180(problem->windDirection - node->state.hdg);
+
+    // Wind direction bins: -180:15:165 (24 bins)
+    double windDir[NDIR];   // NDIR = 24
+    windDir[0] = -180.0;
+    for (int n = 1; n < NDIR; n++) {
+        windDir[n] = windDir[n-1] + 15.0; // with 15 degrees intervals
+    }
+
+    // Find lower index j0
+    for (j = 0; j < NDIR-1; j++) {
+        if (angDiff >= windDir[j] && angDiff < windDir[j+1]) break;
+    }
+    int j0 = (int)j;
+    int j1 = (j0+1 < NDIR) ? j0+1 : 0; // wrap across seam
+
+    // Fraction ty between windDir[j0] and windDir[j1]
+    double beta0 = windDir[j0];
+    double beta1 = (j1 == 0 ? 180.0 : windDir[j1]);
+    double ty = (angDiff - beta0) / (beta1 - beta0);
+    if (ty < 0) ty = 0; if (ty > 1) ty = 1;
+
+    // Wind speed bins: 0..8 m/s (9 bins)
+    double windSpeed[NW];   // NW = 9
+    for (int n = 0; n < NW; n++) {
+        windSpeed[n] = (double) n;
+    }
+
+    double Wq = problem->windSpeed * KT_2_MS;
+    for (i = 0; i < NW - 1; i++) {
+        if (Wq >= windSpeed[i] && Wq < windSpeed[i+1]) break;
+    }
+    int i0 = (int) i;
+    int i1 = (i0+1 < NW) ? i0 + 1 : NW - 1;
+
+    double tx = (Wq - windSpeed[i0]) / (windSpeed[i1] - windSpeed[i0]);
+    if (tx < 0) tx = 0; if (tx > 1) tx = 1;
+
+    // Heading change index for deltaCourse \in {-90,-75,...,90}
+    double headingChange = node->action->deltaCourse;
+
+    // Round to nearest multiple of 15
+    int step = (int) lround(headingChange / 15.0);
+
+    // Range check
+    if (step < -6 || step > 6) {
+        return NAN;  // invalid
+    }
+
+    // Map [-6..6] -> [0..12]
+    if (step > 0) k = step + 5;
+    else k = step + 6;
+
+    // Bilinear interpolation from 4 surrounding bins
+    double g00 = problem->ac->gamma_turn[i0][j0][k];
+    double g01 = problem->ac->gamma_turn[i0][j1][k];
+    double g10 = problem->ac->gamma_turn[i1][j0][k];
+    double g11 = problem->ac->gamma_turn[i1][j1][k];
+    
+
+    double g0 = g00*(1.0 - ty) + g01*ty;
+    double g1 = g10*(1.0 - ty) + g11*ty;
+    double gamma_turn = g0*(1.0 - tx) + g1*tx;
+
+    return fabs(gamma_turn);
+}
+
+/*
+    Returns the optimal flight path angle for turns
+    to maintain the airspeed
+*/
+double getViableGamma(Node *node, SearchProblem *problem) {
+    // Dataset indices
+    size_t i = 0, j = 0, k = 0;
+
+    // Relative wind angle β = windDir - heading, wrapped to [-180,180)
+    double angDiff = wrapTo180(problem->windDirection - node->state.hdg);
+
+    // Wind direction bins: -180:15:165 (24 bins)
+    double windDir[NDIR];   // NDIR = 24
+    windDir[0] = -180.0;
+    for (int n = 1; n < NDIR; n++) {
+        windDir[n] = windDir[n-1] + 15.0; // with 15 degrees intervals
+    }
+
+    // Find lower index j0
+    for (j = 0; j < NDIR-1; j++) {
+        if (angDiff >= windDir[j] && angDiff < windDir[j+1]) break;
+    }
+    int j0 = (int)j;
+    int j1 = (j0+1 < NDIR) ? j0+1 : 0; // wrap across seam
+
+    // fraction ty between windDir[j0] and windDir[j1]
+    double beta0 = windDir[j0];
+    double beta1 = (j1 == 0 ? 180.0 : windDir[j1]);
+    double ty = (angDiff - beta0) / (beta1 - beta0);
+    if (ty < 0) ty = 0; if (ty > 1) ty = 1;
+
+    // Wind speed bins: 0..8 m/s (9 bins)
+    double windSpeed[NW];   // NW = 9
+    for (int n = 0; n < NW; n++) {
+        windSpeed[n] = (double) n;
+    }
+
+    double Wq = problem->windSpeed * KT_2_MS;
+    for (i = 0; i < NW - 1; i++) {
+        if (Wq >= windSpeed[i] && Wq < windSpeed[i+1]) break;
+    }
+    int i0 = (int) i;
+    int i1 = (i0+1 < NW) ? i0 + 1 : NW - 1;
+
+    double tx = (Wq - windSpeed[i0]) / (windSpeed[i1] - windSpeed[i0]);
+    if (tx < 0) tx = 0; if (tx > 1) tx = 1;
+
+    // Heading change index for deltaCourse ∈ {-90,-75,...,90}
+    double headingChange = node->action->deltaCourse;
+
+    // Round to nearest multiple of 15
+    int step = (int) lround(headingChange / 15.0);
+
+    // Range check
+    if (step < -6 || step > 6) {
+        return NAN;  // invalid
+    }
+
+    // Map [-6..6] → [0..12]
+    if (step > 0) k = step + 5;
+    else k = step + 6;
+
+    // Bilinear interpolation from 4 surrounding bins
+    double g00 = problem->ac->gamma_turn[i0][j0][k];
+    double g01 = problem->ac->gamma_turn[i0][j1][k];
+    double g10 = problem->ac->gamma_turn[i1][j0][k];
+    double g11 = problem->ac->gamma_turn[i1][j1][k];
+
+    double g0 = g00*(1.0 - ty) + g01*ty;
+    double g1 = g10*(1.0 - ty) + g11*ty;
+    double gamma = g0*(1.0 - tx) + g1*tx;
+
+    return fabs(gamma);
+}
+
+/*
     Reads flight path angle [deg] datasets
     for straight gliding segments
-    (i.e., between turn segments and final approach)
-    and stores in Dubins structure
 */
-int readGammaStraight(struct Aircraft *ac, char *ac_name)
-{
+int readGammaStraight(struct Aircraft *ac, char *ac_name) {
     // Straight best-glide 
     FILE * file;
     char dir[300];
     sprintf(dir,"data/gamma_straight.dat");
     file = fopen(dir,"r");
 
-    if (!file)
-    {
+    if (!file) {
         printf("Can't open gamma_straight.dat...\n");
         return EXIT_FAILURE;
     }
 
     char line[300];
     fgets(line,300,file);
-    for (int i = 0; i < 9; fgets(line,300,file), i++)
-    {
+    for (int i = 0; i < 9; fgets(line,300,file), i++) {
         sscanf(line,"%lf %lf %lf %lf %lf %lf %lf %lf %lf",&ac->gamma_bg[i][0], &ac->gamma_bg[i][1],
                                                           &ac->gamma_bg[i][2], &ac->gamma_bg[i][3],
                                                           &ac->gamma_bg[i][4], &ac->gamma_bg[i][5],
@@ -604,19 +778,17 @@ int readGammaStraight(struct Aircraft *ac, char *ac_name)
     }
     fclose(file);
 
-    // Straight steepest glide
+    // Straight steepest glide corresponding to the maximum flap extended airspeed
     sprintf(dir,"data/gamma_straight_100kts.dat");
     file = fopen(dir,"r");
 
-    if (!file)
-    {
+    if (!file) {
         printf("Can't open gamma_straight.dat...\n");
         return EXIT_FAILURE;
     }
 
     fgets(line,300,file);
-    for (int i = 0; i < 9; fgets(line,300,file), i++)
-    {
+    for (int i = 0; i < 9; fgets(line,300,file), i++) {
         sscanf(line,"%lf %lf %lf %lf %lf %lf %lf %lf %lf",&ac->gamma_vfe[i][0], &ac->gamma_vfe[i][1],
                                                           &ac->gamma_vfe[i][2], &ac->gamma_vfe[i][3],
                                                           &ac->gamma_vfe[i][4], &ac->gamma_vfe[i][5],
@@ -626,7 +798,87 @@ int readGammaStraight(struct Aircraft *ac, char *ac_name)
     }
     fclose(file);
 
+    // Straight optimal glide corresponding to the reference airspeed
+    sprintf(dir,"data/gammaOpt.dat");
+    file = fopen(dir,"r");
+
+    if (!file) {
+        printf("Can't open gammaOpt.dat...\n");
+        return EXIT_FAILURE;
+    }
+
+    fgets(line,300,file);
+    for (int i = 0; i < 9; fgets(line,300,file), i++) {
+        sscanf(line,"%lf %lf %lf %lf %lf %lf %lf %lf %lf",&ac->gamma_opt[i][0], &ac->gamma_opt[i][1],
+                                                          &ac->gamma_opt[i][2], &ac->gamma_opt[i][3],
+                                                          &ac->gamma_opt[i][4], &ac->gamma_opt[i][5],
+                                                          &ac->gamma_opt[i][6], &ac->gamma_opt[i][7],
+                                                          &ac->gamma_opt[i][8]);
+        
+    }
+    fclose(file);
+
 	return EXIT_SUCCESS;
+}
+
+static int read_exact(void *dst, size_t sz, size_t n, FILE *f) {
+    return fread(dst, sz, n, f) == n ? 0 : -1;
+}
+
+/*
+    Reads flight path angle [deg] datasets
+    for turning segments
+*/
+static int readGammaTurn(Aircraft *ac) {
+    if (!ac) return -100;
+
+    // const char *path = "data/gammaTurn.bin";
+    const char *path = "data/viableGammaTurn.bin";
+
+    FILE *f = fopen(path, "rb");
+    if (!f) {
+        fprintf(stderr, "fopen failed for '%s': %s\n", path, strerror(errno));
+        return 1;
+    }
+    if (!f) return -1;
+
+    unsigned char magic[4];
+    if (read_exact(magic,1,4,f) || memcmp(magic,"GAMM",4)!=0) { fclose(f); return -2; }
+
+    uint32_t ver, nW, nDir, nCase;
+    if (read_exact(&ver,sizeof(uint32_t),1,f) || ver!=1)         { fclose(f); return -3; }
+    if (read_exact(&nW, sizeof(uint32_t),1,f))                   { fclose(f); return -4; }
+    if (read_exact(&nDir,sizeof(uint32_t),1,f))                  { fclose(f); return -5; }
+    if (read_exact(&nCase,sizeof(uint32_t),1,f))                 { fclose(f); return -6; }
+
+    if (nW!=NW || nDir!=NDIR || nCase!=NCASE) { fclose(f); return -7; }
+
+    float *W   = (float*)malloc(nW   * sizeof(float));
+    float *Dir = (float*)malloc(nDir * sizeof(float));
+    float *dCh = (float*)malloc(nCase* sizeof(float));
+    if (!W || !Dir || !dCh) { fclose(f); free(W); free(Dir); free(dCh); return -8; }
+
+    if (read_exact(W,  sizeof(float), nW,   f) ||
+        read_exact(Dir,sizeof(float), nDir, f) ||
+        read_exact(dCh,sizeof(float), nCase,f)) {
+        fclose(f); free(W); free(Dir); free(dCh); return -9;
+    }
+
+    // Read data: case-major, then W-major, Dir-fastest (float32)
+    // For each case c, for each wind i, read NDIR floats for all directions
+    for (uint32_t c=0; c<nCase; ++c) {
+        for (uint32_t i=0; i<nW; ++i) {
+            float row[NDIR];
+            if (read_exact(row, sizeof(float), nDir, f)) { fclose(f); free(W); free(Dir); free(dCh); return -13; }
+            for (uint32_t j=0; j<nDir; ++j) {
+                ac->gamma_turn[i][j][c] = (double)row[j];  // promote to double
+            }
+        }
+    }
+
+    fclose(f);
+    free(W); free(Dir); free(dCh);
+    return 0;
 }
 
 /*
@@ -662,6 +914,216 @@ void readSolverType(SearchProblem *problem, const char* cfgdir) {
     fclose(cfg);
 }
 
+void findHoldInboundState(SearchProblem *problem, struct Pos *HoldingPoint)
+{
+    // Get the inbound course
+    double dist, course, bearing;
+    geo_dist(&problem->Initial, HoldingPoint, &dist, &course, &problem->GeoOpt);
+
+    // Get the inbound coordinates
+    problem->holdInbound= (struct Pos *) malloc(sizeof(struct Pos));
+    dist = problem->ac->turnRadius*FT_2_NM;
+    bearing = wrapTo360(course + 90);
+    geo_npos(HoldingPoint, problem->holdInbound, &dist, &bearing, &problem->GeoOpt);
+
+    // Assign the inbound course
+    problem->holdInbound->hdg = course;
+    // Note that the inbound altitude will be assigned after the Dubins path computation
+}
+
+void computePath2Hold(SearchProblem *problem, char * folderName)
+{
+    // Initialize the timer
+    clock_t begin = clock();
+
+    // Identify the best holding point
+    int *nHoldingPoints = (int *) malloc(sizeof(int));
+    struct HoldingPoint *candidateHoldingPoints = getOptimizedHoldingPoints(problem, nHoldingPoints);
+
+    clock_t begin_hp_risk = clock();
+    cumulOverflownPopulationRisk(candidateHoldingPoints, nHoldingPoints, problem);
+    clock_t end_hp_risk = clock();
+    problem->holdPlanRiskRuntime = (double) (end_hp_risk - begin_hp_risk)*1000 / CLOCKS_PER_SEC;
+    problem->HoldingPoint = getBestHoldingPoint(candidateHoldingPoints, nHoldingPoints);
+
+    // Identify the hold inbound state
+    findHoldInboundState(problem, problem->HoldingPoint);
+
+    // Set up the Dubins structure
+    problem->path2Hold = (struct DubinsPath *) malloc(sizeof(struct DubinsPath));
+
+    // Allocate trajectory structure memory
+    Traj_InitArray(problem->path2Hold->traj,4);
+
+    // Set Dubins' initial and final positions
+    problem->path2Hold->traj[0].wpt.pos = problem->Initial;
+    problem->path2Hold->traj[0].wpt.hdg = problem->Initial.hdg;
+    problem->path2Hold->traj[3].wpt.pos.lat = problem->holdInbound->lat;
+    problem->path2Hold->traj[3].wpt.pos.lon = problem->holdInbound->lon;
+    problem->path2Hold->traj[3].wpt.hdg = problem->holdInbound->hdg;
+
+    // Turn radius
+    problem->path2Hold->traj[0].wpt.rad = problem->ac->turnRadius * FT_2_NM;
+    problem->path2Hold->traj[1].wpt.rad = 0.0;
+    problem->path2Hold->traj[2].wpt.rad = problem->ac->turnRadius * FT_2_NM;
+
+    // Flight path angle for segments
+    double *gammaArray = getOptimalGamma(&problem->holdInbound->hdg, problem);
+    problem->path2Hold->traj[0].wpt.gam = -problem->ac->gammaOptTurn;
+    problem->path2Hold->traj[1].wpt.gam = -gammaArray[2];
+    problem->path2Hold->traj[2].wpt.gam = -problem->ac->gammaOptTurn;
+
+    // Compute the shortest path from the initial state to the holding inbound state
+    shortestDubins(problem->path2Hold, problem->DubinsOpt);
+
+    clock_t end = clock();
+    problem->totalHoldPlanRuntime = (double) (end - begin)*1000 / CLOCKS_PER_SEC;
+
+    double interval = 100;
+    int sampleSize;
+    char * filedir = (char *) malloc(256*sizeof(char));
+    sprintf(filedir, "%s/%s", folderName, "dubinstohold.csv");
+    getDubinsCoordinates(problem->path2Hold, interval, &sampleSize, &problem->GeoOpt, filedir);
+
+    free(gammaArray); gammaArray = NULL;
+    free(filedir); filedir = NULL;
+    free(nHoldingPoints); nHoldingPoints = NULL;
+}
+
+void findHoldOutboundState(SearchProblem *problem)
+{
+    // Determine if hold pattern is executed
+    bool holdFlag = false;
+    if (problem->path2Hold->traj[3].wpt.pos.alt > problem->crossoverAlt) holdFlag = true;
+
+    // High-altitude case
+    if (holdFlag) {
+
+        // Get the distance and bearing angle from the holding pattern center to the goal state
+        double dist, bearing;
+        geo_dist(problem->HoldingPoint, &problem->Goal, &dist, &bearing, &problem->GeoOpt);
+        dist *= NM_2_FT;
+
+        // Get the optimal flight path angle to the goal state
+        double *gammaArray = getOptimalGamma(&bearing, problem);
+
+        // Optimum altitude at the hold outbound
+        double optOutboundAltitude = dist*tan(gammaArray[2]*DEG_2_RAD);
+
+        // Hold outbound altitude
+        double outboundAltitude = max(problem->maxObstacleHeight, max(optOutboundAltitude, 1000)) + 1500;
+        
+        // Number of hold turns
+        double nturns = (problem->path2Hold->traj[3].wpt.pos.alt - outboundAltitude)/(2*M_PI*problem->ac->turnRadius*tan(DEG_2_RAD*problem->ac->gammaOptTurn));
+
+        // Hold outbound course angle
+        double outboundCourse = wrapTo360(problem->path2Hold->traj[3].wpt.hdg - (nturns - (int) nturns) * 360);
+
+        // Hold outbound coordinates
+        geo_dist(problem->HoldingPoint, &problem->path2Hold->traj[3].wpt.pos, &dist, &bearing, &problem->GeoOpt);
+        bearing = wrapTo360(bearing - (nturns - (int) nturns) * 360);
+        dist = problem->ac->turnRadius * FT_2_NM;
+
+        problem->holdOutbound = (struct Pos *) malloc(sizeof(struct Pos));
+        geo_npos(problem->HoldingPoint, problem->holdOutbound, &dist, &bearing, &problem->GeoOpt);
+
+        // Update altitude and course
+        problem->holdOutbound->alt = outboundAltitude;
+        problem->holdOutbound->hdg = outboundCourse;
+
+        free(gammaArray); gammaArray = NULL;
+    }
+    // Transition case
+    else {   
+        // Determine the hold outbound state
+        if (problem->path2Hold->traj[1].wpt.pos.alt < problem->crossoverAlt) {
+            
+
+            // First orbit turn direction
+            int turnDir;
+            if ((problem->path2Hold->type == 0) || (problem->path2Hold->type == 1))
+            {
+                turnDir = 1;
+            }
+            else
+            {
+                turnDir = -1;
+            }
+
+            // How much excess altitude aircraft has before crossing the crossover altitude
+            double dAltitude = problem->Initial.alt - problem->crossoverAlt;
+
+            // How much heading change causes aircraft to lose the excess altitude
+            double dPsi = (dAltitude/(problem->ac->turnRadius*tan(DEG_2_RAD*problem->ac->gammaOptTurn))) * RAD_2_DEG;
+
+            // Hold outbound coordinates
+            double dist, bearing;
+            geo_dist(&problem->path2Hold->orbit1, &problem->Initial, &dist, &bearing, &problem->GeoOpt);
+            double new_bearing = wrapTo360(bearing + dPsi*turnDir);
+
+            // Hold outbound coordinates
+            problem->holdOutbound = (struct Pos *) malloc(sizeof(struct Pos));
+            geo_npos(&problem->path2Hold->orbit1, problem->holdOutbound, &dist, &new_bearing, &problem->GeoOpt);
+
+            // Hold outbound course
+            double outboundCourse = wrapTo360(problem->Initial.hdg + dPsi*turnDir);
+            
+            // Update altitude and course
+            problem->holdOutbound->alt = problem->crossoverAlt;
+            problem->holdOutbound->hdg = outboundCourse;
+
+        } else if (problem->path2Hold->traj[2].wpt.pos.alt < problem->crossoverAlt) {
+
+            // Traversal to cross the crossover altitude after the first turn is completed.
+            double dLength = (problem->path2Hold->traj[1].wpt.pos.alt - problem->crossoverAlt)/tan(DEG_2_RAD*fabs(problem->path2Hold->traj[1].wpt.gam));
+            dLength *= FT_2_NM;
+
+            // Hold outbound
+            problem->holdOutbound = (struct Pos *) malloc(sizeof(struct Pos));
+            geo_npos(&problem->path2Hold->traj[1].wpt.pos, problem->holdOutbound, &dLength, &problem->path2Hold->traj[1].wpt.hdg, &problem->GeoOpt);
+
+            // Update altitude and course
+            problem->holdOutbound->alt = problem->crossoverAlt;
+            problem->holdOutbound->hdg = problem->path2Hold->traj[1].wpt.hdg;
+
+        } else if (problem->path2Hold->traj[3].wpt.pos.alt < problem->crossoverAlt) {
+
+            // Second orbit turn direction
+            int turnDir;
+            if ((problem->path2Hold->type == 0) || (problem->path2Hold->type == 1))
+            {
+                turnDir = 1;
+            }
+            else
+            {
+                turnDir = -1;
+            }
+
+            // How much excess altitude aircraft has before crossing the crossover altitude
+            double dAltitude = problem->path2Hold->traj[2].wpt.pos.alt - problem->crossoverAlt;
+
+            // How much heading change causes aircraft to lose the excess altitude
+            double dPsi = (dAltitude/(problem->ac->turnRadius*tan(DEG_2_RAD*problem->ac->gammaOptTurn))) * RAD_2_DEG;
+
+            // Hold outbound coordinates
+            double dist, bearing;
+            geo_dist(&problem->path2Hold->orbit2, &problem->path2Hold->traj[2].wpt.pos, &dist, &bearing, &problem->GeoOpt);
+            double new_bearing = wrapTo360(bearing + dPsi*turnDir);
+
+            // Hold outbound coordinates
+            problem->holdOutbound = (struct Pos *) malloc(sizeof(struct Pos));
+            geo_npos(&problem->path2Hold->orbit1, problem->holdOutbound, &dist, &new_bearing, &problem->GeoOpt);
+
+            // Hold outbound course
+            double outboundCourse = wrapTo360(problem->Initial.hdg + dPsi*turnDir);
+            
+            // Update altitude and course
+            problem->holdOutbound->alt = problem->crossoverAlt;
+            problem->holdOutbound->hdg = outboundCourse;
+        }
+    }
+
+}
 
 void editCFG(char *origCfg, char *caseFolder, struct Pos *initial, struct Pos *goal, struct Pos *touchdown)
 {
@@ -998,7 +1460,7 @@ double groundRisk(SearchProblem *problem, struct DubinsPath *dubins, char *filen
     // Calculate population cost
     double density;
     double I = 0;
-    for (int i = 0; i < numSamples; ++i) {   
+    for (int i = 0; i < numSamples; ++i) {  
         
         // Sample population density below the crossover altitude
         if (coordinates[i].alt < problem->crossoverAlt){
@@ -1037,6 +1499,30 @@ double groundRisk(SearchProblem *problem, struct DubinsPath *dubins, char *filen
 
     // Overflown population risk
     return I;
+}
+
+struct DubinsPath *minRiskDubins(struct DubinsPath * dubins, SearchProblem * problem, double * totalRuntime, double * riskRuntime)
+{
+    // Initialize Dubins structure
+    Traj_InitArray(dubins->traj, 4);
+    dubins->traj[0].wpt.pos = problem->InitialSearch;
+    dubins->traj[0].wpt.hdg = problem->InitialSearch.hdg;
+    dubins->traj[3].wpt.pos = problem->Goal;
+    dubins->traj[3].wpt.hdg = problem->Goal.hdg;
+
+    dubins->traj[0].wpt.gam = -problem->ac->gammaOptTurn;
+    dubins->traj[1].wpt.gam = -problem->gammaOpt;
+    dubins->traj[2].wpt.gam = -problem->ac->gammaOptTurn;
+
+    dubins->traj[0].wpt.rad = problem->ac->turnRadius*FT_2_NM;
+    dubins->traj[1].wpt.rad = 0;
+    dubins->traj[2].wpt.rad = problem->ac->turnRadius*FT_2_NM;
+        
+    // Compute the initial min. risk Dubins path
+    dubins->feasible = true;
+    struct DubinsPath *bestDubins = getMinRiskDubinsPath(dubins, problem, totalRuntime, riskRuntime);
+
+    return bestDubins;
 }
 
 double airspaceRisk(SearchProblem *problem, struct DubinsPath *dubins, char *filename, int type)
