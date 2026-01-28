@@ -34,7 +34,7 @@
 #    Kevin T. Crofton Aerospace and Ocean Engineering Department                    %
 #                                                                                   %
 #    Author  : H. Emre Tekaslan (tekaslan@vt.edu)                                   %
-#    Date    : April 2025                                                           %
+#    Date    : January 2026                                                         %
 #                                                                                   %
 #    Google Scholar  : https://scholar.google.com/citations?user=uKn-WSIAAAAJ&hl=en %
 #    LinkedIn        : https://www.linkedin.com/in/tekaslan/                        %
@@ -65,8 +65,7 @@ int runSearch(SearchProblem * problem)
     begin = clock();
 
     // While the frontier is not empty and max. iteration has not been reached yet
-    while (!pqIsEmpty(problem->pq) && counter <= problem->maxIter)
-    {  
+    while (!pqIsEmpty(problem->pq) && counter <= problem->maxIter) {  
         // Pop a state
         node = pqPop(problem->pq);
 
@@ -100,6 +99,7 @@ int runSearch(SearchProblem * problem)
 
         // Get children states
         children = expandNode(node, problem);
+        
 
         // Add children to the frontier
         for (int i = 0; i < 5; i++) {
@@ -148,10 +148,11 @@ void initializeSearch(SearchProblem * problem) {
     Node *node = (Node *) malloc(sizeof(Node));
     Node * parent_node = NULL;
     double * gammaArray = getOptimalGamma(&problem->Initial.hdg, problem);
-    Action action = {.deltaCourse=0, .length=0, .gamma=gammaArray[2]};
+    Action action = {.deltaCourse=0, .length=0, .gamma=gammaArray[2], .gamma_turn=problem->ac->gammaBGturn};
+    free(gammaArray); gammaArray = NULL;
     node = createNode(&problem->InitialSearch, parent_node, &action);
     node->f = stateCost(node, problem);
-    free(gammaArray); gammaArray = NULL;
+    
 
     // If the initial state is in the prohibited area, return error
     double prohibitedAreaInitialization = getAirTrafficDensity(&node->state, problem->prohibited);
@@ -206,21 +207,46 @@ Action *getActions(struct Node * node, SearchProblem *problem)
         action_list[i].length = problem->lmin;
         if (node->state.alt > problem->adaptiveLenghtAltitude) {
             if (node->ga > 0 || maxDensityAhead(&node->state, problem)) action_list[i].length = problem->lmin;
-            // else action_list[i].length = problem->lmin + 0.3*(node->state.alt - problem->adaptiveLenghtAltitude);
             else action_list[i].length = problem->lmin + 0.1*(node->state.alt - problem->adaptiveLenghtAltitude);
         }
 
         // New course
         double newCourse = wrapTo360(node->state.hdg + action_list[i].deltaCourse);
 
-        // Set flight path angle
+        // Get the straight segment flight path angle
         double *gammaArray = getOptimalGamma(&newCourse, problem);
         if (problem->limitedR) action_list[i].gamma = gammaArray[0];
         else action_list[i].gamma = gammaArray[2];
-
         free(gammaArray); gammaArray = NULL;
-    }
 
+        // Get the flight path angle for turning
+        {
+            if (action_list[i].deltaCourse != 0.0) {
+                // Make a scratch copy of the parent node
+                Node tmp_node = *node;
+
+                // Build a scratch Action that represents this candidate child action
+                Action tmpA = (Action){0};
+                if (node->action) {
+                    // Start from parent's action so any fields getOptimalGammaTurn may rely on are present
+                    tmpA = *node->action;
+                }
+                // Overwrite with the candidate child’s parameters
+                tmpA.deltaCourse = action_list[i].deltaCourse;
+                tmpA.length      = action_list[i].length;
+                tmpA.gamma       = action_list[i].gamma;
+                tmpA.gamma_turn  = 0.0;
+
+                // Point the scratch node at the scratch action
+                tmp_node.action = &tmpA;
+
+                // Compute the turn gamma for this candidate
+                action_list[i].gamma_turn = getOptimalGammaTurn(&tmp_node, problem);
+            } else {
+                action_list[i].gamma_turn = 0.0;
+            }
+        }
+    }
     return action_list;
 }
 
@@ -229,10 +255,11 @@ Action *getActions(struct Node * node, SearchProblem *problem)
     and aircraft parameters (turn radius, glide angles).
 
     Per-segment altitude accounting:
-      - include exit half of previous turn (½|Δχ_prev|)
-      - include entry half of current turn  (½|Δχ_curr|)
+      - include exit half of previous turn
+      - include entry half of current turn 
 */
 struct Pos *result(Node *node, Action *action, SearchProblem *problem) {
+
     // Allocate new state
     struct Pos *newState = (struct Pos *) malloc(sizeof(struct Pos));
     if (newState == NULL) {
@@ -254,7 +281,6 @@ struct Pos *result(Node *node, Action *action, SearchProblem *problem) {
         const double h0         = node->state.alt;
         const double R          = problem->ac->turnRadius;      // ft
         const double gamma_str  = action->gamma;                // deg
-        const double gamma_turn = problem->ac->gammaOptTurn;    // deg
 
         newState->alt = h0 - action->length * tan(gamma_str  * DEG_2_RAD);
 
@@ -264,7 +290,7 @@ struct Pos *result(Node *node, Action *action, SearchProblem *problem) {
         const double h0         = node->state.alt;                 // altitude stored at node (with prior straight assumption)
         const double R          = problem->ac->turnRadius;         // [ft]
         const double gamma_str  = action->gamma;                   // [deg] straight glide for THIS leg
-        const double gamma_turn = problem->ac->gammaOptTurn;       // [deg] glide in turns
+        const double gamma_turn = action->gamma_turn;       // [deg] glide in turns
 
         // Half of THIS action's heading change [rad]
         const double half = 0.5 * fabs(action->deltaCourse) * DEG_2_RAD;
@@ -278,17 +304,16 @@ struct Pos *result(Node *node, Action *action, SearchProblem *problem) {
 
         // 1) Revert prior straight assumption over the entry chord and
         // 2) Apply the actual entry-arc sink at gamma_turn.
-        // This gives the *true* altitude at the node.
+        // This gives the true altitude at the node.
         const double h_parent_corr = h0
             + d_entry * tan(gamma_prev_str * DEG_2_RAD)   // add back straight sink you had over-counted
-            - s_entry * tan(gamma_turn     * DEG_2_RAD);  // apply correct turn sink
+            - s_entry * tan(gamma_turn * DEG_2_RAD);  // apply correct turn sink
 
         // 3) Now fly THIS leg: start with the EXIT half of the same turn, then straight
         const double s_exit = R * half;       // exit arc length [ft]
         const double d_exit = R * tan(half);  // exit chord eaten from this leg's straight [ft]
 
         double l_str = action->length - d_exit;     // remaining straight in this leg
-        if (l_str < 0.0) l_str = 0.0;               // guard very short segments
 
         newState->alt = h_parent_corr
                     - s_exit * tan(gamma_turn * DEG_2_RAD)
@@ -414,7 +439,6 @@ void populationCostNormalizer(SearchProblem *problem)
     problem->populationCostNormalizer = (4.0/27.0) * problem->dOpt * tan(problem->gammaOpt*DEG_2_RAD) / problem->InitialSearch.alt;
 }
 
-
 /*
     Returns the distance cost as a 2D array
 */
@@ -477,9 +501,10 @@ double courseCost(struct Pos *state, SearchProblem *problem)
         g_chi = 1;
     }
 
-    // Add distance weight
+    // Distance weight
     g_chi *= problem->dOpt/dmin;
 
+    // Altitude weight
     g_chi *= w;
     
     return g_chi;
@@ -587,17 +612,6 @@ double altitudeWeight(struct Pos *state, SearchProblem *problem){
 
     // Get altitude bounds as a function of goal state airspace cost for weighting
     double w_altmax, w_altmin;
-    // if (problem->goalAirspaceCost >= 0.5){
-    //     w_altmax = problem->asrisk_w_hmax;
-    //     w_altmin = problem->asrisk_w_hmin;
-    // } else if (problem->goalAirspaceCost >= 0.2 && problem->goalAirspaceCost < 0.5) {
-    //     w_altmax = 1000;
-    //     w_altmin = 500;
-    // } else {
-    //     w_altmax = 1000;
-    //     w_altmin = 200;
-    // }
-
     w_altmax = problem->asrisk_w_hmax;
     w_altmin = problem->asrisk_w_hmin;
     
@@ -837,84 +851,6 @@ double stateCost(Node *node, SearchProblem * problem) {
     }
 }
 
-// /*
-//     Computes the 3D Dubins path
-//     for landing site alignment
-// */
-// bool dubinsFinalTurn(struct Pos *state, SearchProblem * problem) {
-
-//     // Define the initial and final positions for Dubins, and initialize them
-//     struct Pos init = *state;
-//     struct Pos final = problem->Goal;
-
-//     // Define new initial and final positions for iteration
-//     struct Pos new_init = *state;
-//     struct Pos new_final = problem->Goal;
-
-//     // Initial great-circle distance between the initial and final states
-//     double dist, dist2;
-//     double course;
-//     geo_dist(&init, &final, &dist, &course, &problem->GeoOpt);
-
-//     // If the distance is less than 3 turn radius, find new initial and final positions
-//     double step = 10*FT_2_NM;
-//     double *gammaArray = getOptimalGamma(&state->hdg, problem);
-//     double gamma = gammaArray[2];
-//     gammaArray = getOptimalGamma(&problem->Goal.hdg, problem);
-//     double gammaFinal = gammaArray[2];
-//     double extendInitDirection = wrapTo360(state->hdg - 180);
-//     double extendFinalDirection = problem->Goal.hdg;
-//     double minDist = 3*problem->ac->turnRadius * FT_2_NM;
-//     double maxDist = 0.5*problem->ac->turnRadius * FT_2_NM;
-
-//     while (dist <= minDist) {
-
-//         // Find the distance from initial Dubins position to the given state
-//         geo_dist(&init, state, &dist2, &course, &problem->GeoOpt);
-
-//         // If this distance is less than 0.5 turn radius, pull it back to increase the distance in-between the initial and final Dubins positions
-//         if (dist2 < maxDist) {
-//             geo_npos(&init, &new_init, &step, &extendInitDirection, &problem->GeoOpt);
-//             new_init.alt += 10*tan(gamma*DEG_2_RAD);
-//             init = new_init;
-//         }
-
-//         // Extend the final Dubins position toward the touchdown
-//         geo_npos(&final, &new_final, &step, &extendFinalDirection, &problem->GeoOpt);
-//         new_final.alt -= 10*tan(gammaFinal*DEG_2_RAD);
-//         final = new_final;
-
-//         // Update the distance in-between the initial and final Dubins positions
-//         geo_dist(&init, &final, &dist, &course, &problem->GeoOpt);
-//     }  
-
-//     // Set Dubins' initial and final positions
-//     problem->finalTurn->traj[0].wpt.pos = init;
-//     problem->finalTurn->traj[0].wpt.hdg = init.hdg;
-//     problem->finalTurn->traj[3].wpt.pos = final;
-//     problem->finalTurn->traj[3].wpt.hdg = final.hdg;
-
-//     // Turn radius
-//     problem->finalTurn->traj[0].wpt.rad = problem->ac->turnRadius * FT_2_NM;
-//     problem->finalTurn->traj[1].wpt.rad = 0.0;
-//     problem->finalTurn->traj[2].wpt.rad = problem->ac->turnRadius * FT_2_NM;
-
-//     // Flight path angle
-//     gammaArray = getOptimalGamma(&state->hdg, problem);
-
-//     double strSegmentGamma = gammaArray[0];
-//     problem->finalTurn->traj[0].wpt.gam = -4.3;
-//     problem->finalTurn->traj[1].wpt.gam = -strSegmentGamma;
-//     problem->finalTurn->traj[2].wpt.gam = -4.3;
-
-//     // Dubins options
-//     shortestDubins(problem->finalTurn, problem->DubinsOpt);
-
-//     free(gammaArray); gammaArray = NULL;
-    
-//     return EXIT_SUCCESS;
-// }
-
 bool dubinsFinalTurn(struct Node *node, SearchProblem * problem)
 {
     // Get the candidate solution
@@ -990,22 +926,31 @@ bool dubinsFinalTurn(struct Node *node, SearchProblem * problem)
     problem->finalTurn->traj[1].wpt.rad = 0.0;
     problem->finalTurn->traj[2].wpt.rad = problem->ac->turnRadius * FT_2_NM;
 
-    // Flight path angle
+    // Straight flight path angle
     gammaArray = getOptimalGamma(&course, problem);
-    double strSegmentGamma = gammaArray[2];
-    problem->finalTurn->traj[0].wpt.gam = -problem->ac->gammaOptTurn;
-    problem->finalTurn->traj[1].wpt.gam = -strSegmentGamma;
-    problem->finalTurn->traj[2].wpt.gam = -problem->ac->gammaOptTurn;
+    problem->finalTurn->traj[1].wpt.gam = -gammaArray[2];
     free(gammaArray); gammaArray = NULL;
-    
-    // Dubins options
-    double fingam = 0;
+
+    // Turn flight path angle
+    problem->finalTurn->traj[0].wpt.gam = -problem->ac->gammaOptTurn;
+    problem->finalTurn->traj[2].wpt.gam = -problem->ac->gammaOptTurn;
+
+    // Compute the initial approximate path
     shortestDubins(problem->finalTurn, problem->DubinsOpt);
+
+    // Set the optimal turn flight path angles
+    // given the heading changes of the approximate path
+    updateOptimalGammaTurn(problem->finalTurn, problem);
+    
+    // Compute the shortest path again with the updated turn flight path angles
+    int type = problem->finalTurn->type;
+    shortestDubins(problem->finalTurn, problem->DubinsOpt);
+    problem->finalTurn->type = type;
 
     // Assert final Dubins altitude
     geo_dist(&problem->Touchdown, &problem->finalTurn->traj[3].wpt.pos, &dist3, &course, &problem->GeoOpt);
     double dh = problem->finalTurn->traj[3].wpt.pos.alt - problem->Touchdown.alt;
-    fingam = atan(dh / (dist3*NM_2_FT)) * RAD_2_DEG;
+    double fingam = atan(dh / (dist3*NM_2_FT)) * RAD_2_DEG;
 
     gammaArray = getOptimalGamma(&problem->Goal.hdg, problem);
     // printf("Final gamma: %.3f <= %.3f <= %.3f\n", gammaArray[0], fingam, gammaArray[1]);
@@ -1015,9 +960,6 @@ bool dubinsFinalTurn(struct Node *node, SearchProblem * problem)
     }
 
     free(gammaArray); gammaArray = NULL;
-
-    // printf("Orbit1 %f %f\n", problem->finalTurn->orbit1.lat, problem->finalTurn->orbit1.lon);
-    // printf("Orbit2 %f %f\n", problem->finalTurn->orbit2.lat, problem->finalTurn->orbit2.lon);
 
     return EXIT_SUCCESS;
 }
@@ -1503,13 +1445,13 @@ void computeCorrectedAltitudes(const struct Path *path,
         if (i == 0){
 
             // Segment initial exit turn
-            double half_chi = fabs(path->nodes[i].action->deltaCourse)/2 * DEG_2_RAD; // Half turn angle
+            double half_chi = fabs(path->nodes[1].action->deltaCourse)/2 * DEG_2_RAD; // Half turn angle
             d_exit = R * tan(half_chi); // Entry eaten distance
             s_exit  = R * half_chi;      // Entry arc length
             str_l_eff = path->nodes[1].action->length - d_exit;
 
-            double gamma_str = path->nodes[0].action->gamma * DEG_2_RAD;
-            double gamma_turn = ac->gammaOptTurn* DEG_2_RAD;
+            double gamma_str = path->nodes[i].action->gamma * DEG_2_RAD;
+            double gamma_turn =  path->nodes[i].action->gamma_turn* DEG_2_RAD;
 
             out_alt[i+1] = out_alt[i] - s_exit*tan(gamma_turn) - str_l_eff*tan(gamma_str);
 
@@ -1521,13 +1463,18 @@ void computeCorrectedAltitudes(const struct Path *path,
             d_exit = d_entry;
             s_entry  = R * half_chi;      // Entry arc length
             s_exit = s_entry;
-            str_l_eff = path->nodes[i+1].action->length - d_exit;
-
-            double gamma_str = path->nodes[i+1].action->gamma * DEG_2_RAD;
-            double gamma_turn = ac->gammaOptTurn* DEG_2_RAD;
+            
+            double gamma_str = path->nodes[i].action->gamma * DEG_2_RAD;
+            double gamma_turn = path->nodes[i+1].action->gamma_turn * DEG_2_RAD;
             
             // Make correction on the altitude of the current state
             out_alt[i] = out_alt[i] + d_entry*tan(gamma_str) - s_entry*tan(gamma_turn);
+
+            // Now fly the next segment
+            gamma_str = path->nodes[i+1].action->gamma * DEG_2_RAD;
+
+            // Effectice straight length
+            str_l_eff = path->nodes[i+1].action->length - d_exit;
 
             // Propagate the altitude till the next waypoint
             out_alt[i+1] = out_alt[i] - s_exit*tan(gamma_turn) - str_l_eff*tan(gamma_str);
@@ -1590,11 +1537,12 @@ int writeResults(SearchProblem *problem, struct DubinsPath *bestDubins, char *fo
             return EXIT_FAILURE;
         }
         for (int i = 0; i < 4; i++){
-            fprintf(file, "%.6f, %.6f, %.6f, %.6f, %d\n", problem->finalTurn->traj[i].wpt.pos.lat,
-                                                    problem->finalTurn->traj[i].wpt.pos.lon,
-                                                    problem->finalTurn->traj[i].wpt.pos.alt,
-                                                    problem->finalTurn->traj[i].wpt.hdg,
-                                                    problem->finalTurn->type);
+            fprintf(file, "%.6f, %.6f, %.6f, %.6f, %.6f, %d\n", problem->finalTurn->traj[i].wpt.pos.lat,
+                                                                problem->finalTurn->traj[i].wpt.pos.lon,
+                                                                problem->finalTurn->traj[i].wpt.pos.alt,
+                                                                problem->finalTurn->traj[i].wpt.hdg,
+                                                                problem->finalTurn->traj[i].wpt.gam,
+                                                                problem->finalTurn->type);
         }
         fprintf(file,"%.6f, %.6f\n", problem->finalTurn->orbit1.lat, problem->finalTurn->orbit1.lon);
         fprintf(file,"%.6f, %.6f\n", problem->finalTurn->orbit2.lat, problem->finalTurn->orbit2.lon);
@@ -1621,9 +1569,10 @@ int writeResults(SearchProblem *problem, struct DubinsPath *bestDubins, char *fo
 
         // Write
         for (int i = 0; i < problem->path->depth; i++) {
-            fprintf(file, "%.6f, %.6f, %.6f\n", problem->pathActions[i].deltaCourse,
+            fprintf(file, "%.6f, %.6f, %.6f, %.6f\n", problem->pathActions[i].deltaCourse,
                                                 problem->pathActions[i].length,
-                                                problem->pathActions[i].gamma);
+                                                problem->pathActions[i].gamma,
+                                                problem->pathActions[i].gamma_turn);
         }
         fclose(file);
     }
@@ -1686,11 +1635,13 @@ int writeResults(SearchProblem *problem, struct DubinsPath *bestDubins, char *fo
 
         // Write
         for (int i = 0; i < problem->explored->size; i++) {
-            fprintf(file, "%.6f, %.6f, %.6f, %.6f, %.6f\n", problem->explored->nodes[i].state.lat,
+            fprintf(file, "%.6f, %.6f, %.6f, %.6f, %.6f, %.6f, %.6f\n", problem->explored->nodes[i].state.lat,
                                                     problem->explored->nodes[i].state.lon,
                                                     problem->explored->nodes[i].state.alt,
                                                     problem->explored->nodes[i].state.hdg,
-                                                    problem->explored->nodes[i].g);
+                                                    problem->explored->nodes[i].g,
+                                                    problem->explored->nodes[i].h,
+                                                    problem->explored->nodes[i].f);
         }
         fclose(file);
 
