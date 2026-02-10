@@ -141,7 +141,7 @@ If you use this software in part or in full for your research or projects, pleas
 Tekaslan, H. E., & Atkins, E. M. (2026). Airspace-aware Contingency Landing Planning. arXiv:2602.07074. Available: http://arxiv.org/abs/2602.07074
 
 ```bibtex
-@misc{tekaslan2026airspaceawarecontingencylandingplanning,
+@misc{ggs_aclm,
       title={Airspace-aware Contingency Landing Planning}, 
       author={H. Emre Tekaslan and Ella M. Atkins},
       year={2026},
