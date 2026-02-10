@@ -110,7 +110,7 @@ Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wi
   Tekaslan, H. E. and Atkins, E. M., “Gradient-Guided Search for Aircraft Contingency Landing Planning,” _Drones_, Vol. 9, No. 9, 2025. https://doi.org/10.3390/drones9090642.
   
 - **Airspace Risk Modeling** \
-  Tekaslan, H. E. and Atkins, E. M., xxxxxxxxx. arXiv 2025, xxxxxxxx. https://doi.org/xxxxxxxxx
+  Tekaslan, H. E. and Atkins, E. M. (2026). Airspace-aware Contingency Landing Planning. arXiv:2602.07074. Available: http://arxiv.org/abs/2602.07074
   
 - **Glide Descent Angle Derivation** \
   Tekaslan, H. E. and Atkins, E. M., “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, Vol. 48, No. 8, pp. 1800–1817, 2025. https://doi.org/10.2514/1.G008803 .\
@@ -139,7 +139,7 @@ M. Schäfer, M. Strohmeier, V. Lenders, I. Martinovic, and M. Wilhelm, “Bringi
 
 If you use this software in part or in full for your research or projects, please cite:
 
-Tekaslan, H. E., & Atkins, E. M. (2026). Airspace-aware Contingency Landing Planning. arXiv:2602.07074. Available: http://arxiv.org/abs/2602.07074
+Tekaslan, H. E. and Atkins, E. M. (2026). Airspace-aware Contingency Landing Planning. arXiv:2602.07074. Available: http://arxiv.org/abs/2602.07074
 
 ```bibtex
 @misc{ggs_aclm,
