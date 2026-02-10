@@ -138,18 +138,17 @@ M. Schäfer, M. Strohmeier, V. Lenders, I. Martinovic, and M. Wilhelm, “Bringi
 ---
 
 If you use this software in part or in full for your research or projects, please cite:
-
-Tekaslan, H. E.; Atkins, E. M.xxxxxxxxx. arXiv 2025, xxxxxxxx. https://doi.org/xxxxxxxxx
+Tekaslan, H. E., & Atkins, E. M. (2026). Airspace-aware Contingency Landing Planning. arXiv:2602.07074. Available: http://arxiv.org/abs/2602.07074
 
 ```bibtex
-@article{ggs_aclm,
-	doi = {xxxxx},
-	year = 2025,
-	month = {xxxx},
-	publisher = {arXiv},
-	author = {H. Emre Tekaslan and Ella M. Atkins},
-	title = {xxxxxxxxx},
-	journal = {arXiv}
+@misc{tekaslan2026airspaceawarecontingencylandingplanning,
+      title={Airspace-aware Contingency Landing Planning}, 
+      author={H. Emre Tekaslan and Ella M. Atkins},
+      year={2026},
+      eprint={2602.07074},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2602.07074}, 
 }
 ```
 
