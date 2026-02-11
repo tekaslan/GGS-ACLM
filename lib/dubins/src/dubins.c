@@ -731,15 +731,6 @@ struct DubinsPath *getMinRiskDubinsPath(struct DubinsPath *dubins,
         traj_calctraj_angdist(&(tmp_path[type].traj[0]), 0, &(problem->DubinsOpt->trajopt));
         Traj_Calc3D(&(tmp_path[type].traj[0]), 0, &(problem->DubinsOpt->trajopt));
 
-        // for (int i = 0; i < 4; i++){
-        //     printf("%f, %f, %f, %f, gam: %f, hdist: %f\n", tmp_path[type].traj[i].wpt.pos.lat,
-        //                                                     tmp_path[type].traj[i].wpt.pos.lon,
-        //                                                 tmp_path[type].traj[i].wpt.pos.alt,
-        //                                             tmp_path[type].traj[i].wpt.pos.hdg,
-        //                                         tmp_path[type].traj[i].wpt.gam,
-        //                                     tmp_path[type].traj[i].hdist);
-        // }
-
         // If the case cannot be solved, assign NAN to the horizontal path length.
         if (isnan(tmp_path[type].traj[3].wpt.pos.alt)) {tmp_path[type].hdist = NAN; continue;};
 
@@ -762,20 +753,10 @@ struct DubinsPath *getMinRiskDubinsPath(struct DubinsPath *dubins,
         tmp_path[type].risk = INFINITY;
 
         // Recompute the Dubins path
-        // printf("Recomputing...\n");
         tmp_path[type].hdist = 0;
         Dubins(&tmp_path[type], problem->DubinsOpt);
         traj_calctraj_angdist(&(tmp_path[type].traj[0]), 0, &(problem->DubinsOpt->trajopt));
         Traj_Calc3D(&(tmp_path[type].traj[0]), 0, &(problem->DubinsOpt->trajopt));
-
-        // for (int i = 0; i < 4; i++){
-        //     printf("%f, %f, %f, %f, gam: %f, hdist: %f\n", tmp_path[type].traj[i].wpt.pos.lat,
-        //                                                     tmp_path[type].traj[i].wpt.pos.lon,
-        //                                                 tmp_path[type].traj[i].wpt.pos.alt,
-        //                                             tmp_path[type].traj[i].wpt.pos.hdg,
-        //                                         tmp_path[type].traj[i].wpt.gam,
-        //                                     tmp_path[type].traj[i].hdist);
-        // }
 
         // Check altitude loss
         double dh = tmp_path[type].traj[0].wpt.pos.alt - tmp_path[type].traj[3].wpt.pos.alt;
@@ -784,8 +765,6 @@ struct DubinsPath *getMinRiskDubinsPath(struct DubinsPath *dubins,
         double htol = -3;
         if (dh - targetdAltitude < htol) {
             struct DubinsPath *sturn = getBestSturnPath(&tmp_path[type], targetdAltitude, problem, riskRuntime);
-
-            // printf("sturn.risk %f\n", sturn[0].risk);
 
             if (sturn[0].risk <= minRisk) {
 
@@ -827,8 +806,6 @@ struct DubinsPath *getMinRiskDubinsPath(struct DubinsPath *dubins,
                 }
             }
 
-            // printf("tmp_path[type] final alt: %f, hdist %f\n", tmp_path[type].traj[3].wpt.pos.alt, tmp_path[type].hdist);
-
             // Get path coordinates
             if (!isnan(tmp_path[type].hdist)) {
 
@@ -844,8 +821,6 @@ struct DubinsPath *getMinRiskDubinsPath(struct DubinsPath *dubins,
                 tmp_path[type].risk = NAN;
                 continue;
             }
-
-            // printf("tmp_path[type].risk %f\n", tmp_path[type].risk);
 
             // Compare
             if (tmp_path[type].risk <= minRisk) {
@@ -898,8 +873,7 @@ struct DubinsPath *getMinRiskDubinsPath(struct DubinsPath *dubins,
     Reduces the gliding angle of the straight segment of
     a given Dubins Path.
 */
-int reduceSlope(struct DubinsPath *dubins, double dAltitudeTarget, SearchProblem *problem)
-{
+int reduceSlope(struct DubinsPath *dubins, double dAltitudeTarget, SearchProblem *problem){
     // Actual altitude loss
     double dAltitudeActual = dubins->traj[0].wpt.pos.alt - dubins->traj[3].wpt.pos.alt;
 
