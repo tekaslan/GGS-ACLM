@@ -114,7 +114,6 @@ Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wi
   
 - **Glide Descent Angle Derivation** \
   Tekaslan, H. E. and Atkins, E. M., “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, Vol. 48, No. 8, pp. 1800–1817, 2025. https://doi.org/10.2514/1.G008803 .\
-  Tekaslan, H. E. and Atkins, E. M., “Airspeed Viability for Gliders Under Ground-referenced Guidance,” _Robotics and Automation Letters_, Vol. xx, No. x, pp. xx, 2026.
 
 ## 📚 Outsourced Datasets
 
