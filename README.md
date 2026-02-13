@@ -113,7 +113,7 @@ Note: The default Cessna 182 dataset supports maximum 8 m/s (~ 15.6 knots) of wi
   Tekaslan, H. E. and Atkins, E. M. (2026). Airspace-aware Contingency Landing Planning. arXiv:2602.07074. Available: http://arxiv.org/abs/2602.07074
   
 - **Glide Descent Angle Derivation** \
-  Tekaslan, H. E. and Atkins, E. M., “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, Vol. 48, No. 8, pp. 1800–1817, 2025. https://doi.org/10.2514/1.G008803 .\
+  Tekaslan, H. E. and Atkins, E. M., “Vehicle-to-Vehicle Approach to Assured Aircraft Emergency Road Landings,” _AIAA Journal of Guidance, Control, and Dynamics_, Vol. 48, No. 8, pp. 1800–1817, 2025. https://doi.org/10.2514/1.G008803.
 
 ## 📚 Outsourced Datasets
 
