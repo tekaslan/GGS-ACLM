@@ -311,6 +311,7 @@ Action *solutionActions(Node *node, int *solutionLength, SearchProblem *problem)
         actions[i-1].deltaCourse  = pathNodes[i-1]->action->deltaCourse;
         actions[i-1].length       = pathNodes[i-1]->action->length;
         actions[i-1].gamma        = pathNodes[i-1]->action->gamma + problem->dGamma;
+        actions[i-1].gamma_turn   = pathNodes[i-1]->action->gamma_turn
     }
     *solutionLength = pathLength - 1;
     free(pathNodes); pathNodes = NULL;
